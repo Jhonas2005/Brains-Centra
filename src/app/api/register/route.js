@@ -1,37 +1,94 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
-import bcrypt from 'bcryptjs';
+import { supabaseAdmin } from '@/lib/supabase';
 
-// MUST be an exact named export: "export async function POST"
 export async function POST(req) {
   try {
+    console.log('Register route hit');
     const { firstName, lastName, email, company, password } = await req.json();
-    await connectDB();
+    console.log('Request data:', { firstName, lastName, email, company, password: password ? '[PRESENT]' : '[MISSING]' });
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ message: "Email already in use." }, { status: 400 });
+    if (!firstName || !lastName || !email || !password) {
+      return NextResponse.json({ 
+        message: "All fields are required" 
+      }, { status: 400 });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    if (!supabaseAdmin) {
+      console.error('❌ Supabase not configured properly');
+      return NextResponse.json({ 
+        message: "Server configuration error: Supabase credentials missing. Please add your Supabase URL and keys to .env.local" 
+      }, { status: 500 });
+    }
 
-    // Create new user (Role defaults to 'customer')
-    const newUser = new User({
-      firstName,
-      lastName,
+    console.log('Creating user with Supabase Auth...');
+    
+    // Create user with Supabase Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      company,
-      password: hashedPassword,
+      password,
+      email_confirm: true, // Auto-confirm email for admin creation
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        company: company || null,
+        role: 'customer'
+      }
     });
 
-    await newUser.save();
-    return NextResponse.json({ message: "Account created successfully" }, { status: 201 });
+    if (authError) {
+      console.error('Auth error:', authError);
+      
+      if (authError.message.includes('already registered')) {
+        return NextResponse.json({ 
+          message: "Email already in use." 
+        }, { status: 400 });
+      }
+      
+      return NextResponse.json({ 
+        message: "Failed to create account", 
+        error: authError.message 
+      }, { status: 500 });
+    }
+
+    console.log('User created successfully:', authData.user.id);
+
+    // Optionally, insert additional user data into a custom profiles table
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        company: company || null,
+        role: 'customer',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      // This might fail if trigger already created the profile, which is fine
+      console.log('Profile insert info (this is normal if trigger created it):', profileError.message);
+    } else {
+      console.log('Profile created successfully in profiles table');
+    }
+
+    return NextResponse.json({ 
+      message: "Account created successfully",
+      user: {
+        id: authData.user.id,
+        email: authData.user.email,
+        firstName,
+        lastName,
+        company: company || null
+      }
+    }, { status: 201 });
 
   } catch (error) {
-    return NextResponse.json({ message: "An error occurred", error: error.message }, { status: 500 });
+    console.error('Unexpected error:', error);
+    return NextResponse.json({ 
+      message: "An unexpected error occurred", 
+      error: error.message 
+    }, { status: 500 });
   }
 }

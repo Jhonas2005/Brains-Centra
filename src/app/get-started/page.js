@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation'; // 1. Imported the router
 
 // --- Particle Network Background Component ---
 const ParticleBackground = () => {
@@ -95,11 +96,13 @@ const ParticleBackground = () => {
 };
 
 export default function GetStarted() {
-  const [message, setMessage] = useState("");
+  const router = useRouter(); // 2. Initialize the router
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // 3. State to control the popup
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setMessage("Creating account...");
+    setErrorMessage("");
 
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
@@ -114,19 +117,52 @@ export default function GetStarted() {
       const result = await res.json();
 
       if (res.ok) {
-        setMessage("Account created successfully! You can now sign in.");
+        // 4. Show the success modal
+        setShowSuccessModal(true);
         e.target.reset();
+        
+        // 5. Automatically redirect after 3 seconds
+        setTimeout(() => {
+          router.push('/');
+        }, 3000);
       } else {
-        setMessage(result.message);
+        setErrorMessage(result.message);
       }
     } catch (error) {
-      setMessage("An error occurred. Please try again.");
+      setErrorMessage("An error occurred. Please try again.");
     }
   };
 
   return (
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 flex flex-col items-center justify-center p-6">
       <ParticleBackground />
+
+      {/* --- SUCCESS MODAL OVERLAY --- */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm"></div>
+          
+          <div className="relative w-full max-w-sm bg-[#13172e] border border-fuchsia-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(217,70,239,0.25)] z-10 text-center animate-pulse">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/50 mb-6">
+              <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-2">Access Granted</h3>
+            <p className="text-sm text-indigo-200 mb-6">Your Central Command account has been successfully created.</p>
+            
+            <div className="flex items-center justify-center space-x-2 text-fuchsia-400 text-sm font-mono tracking-widest">
+              <svg className="animate-spin h-4 w-4 text-fuchsia-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>REDIRECTING...</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- END MODAL --- */}
 
       <a href="/" className="absolute top-8 left-8 flex items-center text-indigo-300 hover:text-fuchsia-400 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -143,7 +179,7 @@ export default function GetStarted() {
           <p className="text-sm text-indigo-300/80">Create your operator account to get started.</p>
         </div>
 
-        {message && <p className="text-center text-sm font-semibold text-fuchsia-400 mb-4">{message}</p>}
+        {errorMessage && <p className="text-center text-sm font-semibold text-red-400 mb-4">{errorMessage}</p>}
 
         <form className="space-y-5" onSubmit={handleRegister}>
           <div className="grid grid-cols-2 gap-4">

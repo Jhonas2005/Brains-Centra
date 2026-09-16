@@ -491,12 +491,6 @@ export default function CentralCommand() {
 
       {/* Hero Section */}
       <header id="platform" className="flex flex-col items-center justify-center text-center pt-32 pb-24 px-4 border-b border-indigo-900/30 bg-gradient-to-b from-[#090b14]/40 to-[#0d111f]/40 scroll-mt-24">
-        <FadeIn delay={100} direction="down">
-          <div className="inline-flex items-center space-x-2 border border-blue-800/50 bg-blue-900/20 rounded-full px-3 py-1 mb-8 hover:bg-blue-900/30 transition-colors cursor-default backdrop-blur-sm">
-            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-            <span className="text-xs font-medium text-blue-300 tracking-wide">Platform v4.2 • 3.2M devices online</span>
-          </div>
-        </FadeIn>
         
         <FadeIn delay={150}>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl text-white">

@@ -387,9 +387,10 @@ const ModuleSection = ({ data }) => (
             {data.description}
           </p>
           <div className="flex flex-col gap-3">
-            <button className="bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.4)] active:scale-95">
+            {/* UPDATED: Changed from <button> to <a href> link pointing to /free-trial */}
+            <a href="/free-trial" className="block text-center bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.4)] active:scale-95">
               Request Demo
-            </button>
+            </a>
             <button className="border border-indigo-700 bg-[#13172e]/80 backdrop-blur-sm hover:border-fuchsia-500 hover:bg-[#1a1f3c]/80 text-indigo-100 font-semibold py-3 px-6 rounded w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(99,102,241,0.2)] active:scale-95">
               View Documentation
             </button>
@@ -615,7 +616,7 @@ export default function CentralCommand() {
                Start Free Trial
               </a>
               <button className="border border-indigo-800 hover:border-fuchsia-500 bg-[#13172e] hover:bg-[#1a1f3c] text-indigo-100 font-semibold py-3 px-8 rounded transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(99,102,241,0.2)] active:scale-95 w-full sm:w-auto">
-                Talk to Sales
+               Talk to Sales
               </button>
             </div>
           </div>

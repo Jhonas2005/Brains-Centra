@@ -21,7 +21,8 @@ export async function GET(req) {
         company,
         role,
         created_at,
-        updated_at
+        updated_at,
+        status
       `)
       .order('created_at', { ascending: false });
 

@@ -99,6 +99,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState('customer');
+  const [processingId, setProcessingId] = useState(null); // Tracks API requests for approval buttons
 
   useEffect(() => {
     fetchUsers();
@@ -126,28 +129,38 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'updateRole',
-          userId,
-          newRole
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateRole', userId, newRole }),
       });
 
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update user role');
-      }
+      if (!response.ok) throw new Error(data.message || 'Failed to update user role');
 
-      // Refresh the users list
       fetchUsers();
-      // Optional: Replace native alert with a custom toast notification later
       alert(`User role successfully updated to ${newRole.toUpperCase()}`);
     } catch (err) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  // Handles Approve/Reject actions
+  const handleTrialAction = async (userId, email, name, action) => {
+    try {
+      setProcessingId(userId);
+      const response = await fetch('/api/admin/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, email, name, action }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      fetchUsers();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -158,9 +171,10 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    // Perform any logout logic here, then redirect
     window.location.href = "/";
   };
+
+  const displayedUsers = users.filter(user => user.role === activeTab);
 
   if (loading) {
     return (
@@ -235,31 +249,55 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Tab Switchers */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6">
-            <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wide">Total Users</h3>
+            <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wide">Total Platform Users</h3>
             <p className="text-4xl font-bold text-white mt-3">{users.length}</p>
           </div>
-          <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 group">
-            <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wide group-hover:text-fuchsia-400 transition-colors">Admins</h3>
+          
+          <div 
+            onClick={() => setActiveTab('admin')}
+            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 cursor-pointer transition-all ${
+              activeTab === 'admin' 
+                ? 'border-fuchsia-500 shadow-[0_0_20px_rgba(217,70,239,0.2)] ring-1 ring-fuchsia-500/50' 
+                : 'border-indigo-800/50 hover:border-fuchsia-500/50'
+            }`}
+          >
+            <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors ${activeTab === 'admin' ? 'text-fuchsia-400' : 'text-indigo-300'}`}>
+              Administrators
+            </h3>
             <p className="text-4xl font-bold text-fuchsia-400 mt-3 drop-shadow-[0_0_10px_rgba(232,121,249,0.3)]">
               {users.filter(user => user.role === 'admin').length}
             </p>
           </div>
-          <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 group">
-            <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wide group-hover:text-blue-400 transition-colors">Customers</h3>
+
+          <div 
+            onClick={() => setActiveTab('customer')}
+            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 cursor-pointer transition-all ${
+              activeTab === 'customer' 
+                ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.2)] ring-1 ring-blue-500/50' 
+                : 'border-indigo-800/50 hover:border-blue-500/50'
+            }`}
+          >
+            <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors ${activeTab === 'customer' ? 'text-blue-400' : 'text-indigo-300'}`}>
+              Customers
+            </h3>
             <p className="text-4xl font-bold text-blue-400 mt-3 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">
               {users.filter(user => user.role === 'customer').length}
             </p>
           </div>
         </div>
 
-        {/* Users Table */}
+        {/* Dynamic Users Table */}
         <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl shadow-[0_0_40px_rgba(217,70,239,0.15)] overflow-hidden">
           <div className="px-6 py-5 border-b border-indigo-800/50 flex justify-between items-center bg-[#090b14]/50">
-            <h3 className="text-lg font-bold text-white">Operator Roster</h3>
-            <div className="text-xs font-mono text-indigo-400/60 bg-indigo-950/50 px-3 py-1 rounded border border-indigo-900/50">LIVE_SYNC_ACTIVE</div>
+            <h3 className="text-lg font-bold text-white">
+              {activeTab === 'admin' ? 'Administrator Roster' : 'Customer Roster'}
+            </h3>
+            <div className="text-xs font-mono text-indigo-400/60 bg-indigo-950/50 px-3 py-1 rounded border border-indigo-900/50">
+              FILTER: {activeTab.toUpperCase()}
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -270,12 +308,18 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Email</th>
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Company</th>
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Role</th>
+                  
+                  {/* Only show the Status header if viewing customers */}
+                  {activeTab === 'customer' && (
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                  )}
+                  
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-indigo-800/30 bg-transparent">
-                {users.map((user) => (
+                {displayedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-indigo-900/20 transition-colors">
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div>
@@ -303,18 +347,57 @@ export default function AdminDashboard() {
                         {user.role.toUpperCase()}
                       </span>
                     </td>
+                    
+                    {/* Only show the Status badge if viewing customers */}
+                    {activeTab === 'customer' && (
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        {user.status === 'pending' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">PENDING TRIAL</span>
+                        ) : user.status === 'active' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">APPROVED</span>
+                        ) : user.status === 'rejected' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">REJECTED</span>
+                        ) : (
+                          <span className="text-indigo-500/50">-</span>
+                        )}
+                      </td>
+                    )}
+
                     <td className="px-6 py-5 whitespace-nowrap text-sm text-indigo-300/80">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-sm font-medium">
-                      <select
-                        value={user.role}
-                        onChange={(e) => updateUserRole(user.id, e.target.value)}
-                        className="bg-[#090b14] border border-indigo-700 rounded-lg px-3 py-2 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-colors cursor-pointer"
-                      >
-                        <option value="customer">Customer</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      <div className="flex items-center justify-end gap-3">
+                        
+                        {/* Only show Approve/Reject buttons if viewing customers AND status is pending */}
+                        {activeTab === 'customer' && user.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleTrialAction(user.id, user.email, user.first_name, 'approve')}
+                              disabled={processingId === user.id}
+                              className="bg-emerald-600/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-400 hover:text-white text-xs font-bold py-1.5 px-3 rounded transition-all disabled:opacity-50"
+                            >
+                              {processingId === user.id ? '...' : 'APPROVE'}
+                            </button>
+                            <button 
+                              onClick={() => handleTrialAction(user.id, user.email, user.first_name, 'reject')}
+                              disabled={processingId === user.id}
+                              className="bg-red-600/20 hover:bg-red-500/40 border border-red-500/50 text-red-400 hover:text-white text-xs font-bold py-1.5 px-3 rounded transition-all disabled:opacity-50"
+                            >
+                              REJECT
+                            </button>
+                          </div>
+                        )}
+
+                        <select
+                          value={user.role}
+                          onChange={(e) => updateUserRole(user.id, e.target.value)}
+                          className="bg-[#090b14] border border-indigo-700 rounded-lg px-3 py-1.5 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-colors cursor-pointer"
+                        >
+                          <option value="customer">Customer</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -322,9 +405,9 @@ export default function AdminDashboard() {
             </table>
           </div>
 
-          {users.length === 0 && (
+          {displayedUsers.length === 0 && (
             <div className="text-center py-16">
-              <div className="text-indigo-400/60 mb-2">No operators found in database.</div>
+              <div className="text-indigo-400/60 mb-2">No {activeTab}s found in database.</div>
               <div className="w-16 h-1 bg-indigo-900/50 mx-auto rounded-full"></div>
             </div>
           )}

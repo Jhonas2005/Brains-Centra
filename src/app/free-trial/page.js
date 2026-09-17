@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 // --- Particle Network Background Component ---
 const ParticleBackground = () => {
@@ -95,17 +96,23 @@ const ParticleBackground = () => {
 };
 
 export default function FreeTrial() {
-  const [message, setMessage] = useState("");
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  
+  // NEW: State for missing account verification
+  const [showNoAccountModal, setShowNoAccountModal] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setMessage("Setting up your trial...");
+    setErrorMessage("");
 
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
     try {
-      const res = await fetch('/api/register', {
+      // Pointing to our new validation endpoint instead of register
+      const res = await fetch('/api/request-trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -113,20 +120,103 @@ export default function FreeTrial() {
 
       const result = await res.json();
 
-      if (res.ok) {
-        setMessage("Trial activated! You can now sign in.");
+      // Trigger missing account modal if 404 is returned
+      if (res.status === 404) {
+        setShowNoAccountModal(true);
+      } 
+      // Trigger success sequence
+      else if (res.ok) {
+        setShowVerificationModal(true);
         e.target.reset();
-      } else {
-        setMessage(result.message);
+        setTimeout(() => {
+          router.push('/');
+        }, 4000);
+      } 
+      // Handle standard errors
+      else {
+        setErrorMessage(result.message);
       }
     } catch (error) {
-      setMessage("An error occurred. Please try again.");
+      setErrorMessage("An error occurred. Please try again.");
     }
   };
 
   return (
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 flex flex-col items-center justify-center p-6">
       <ParticleBackground />
+
+      {/* --- ACCOUNT NOT FOUND MODAL --- */}
+      {showNoAccountModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm"></div>
+          
+          <div className="relative w-full max-w-md bg-[#13172e] border border-red-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(239,68,68,0.25)] z-10 text-center animate-pulse">
+            
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-500/20 border border-red-500/50 mb-6">
+              <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-2">Account Not Found</h3>
+            <p className="text-sm text-indigo-200 mb-8">
+              We couldn't find an existing Central Command account with that email. You must create an account before requesting a free trial.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => router.push('/get-started')}
+                className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg active:scale-95"
+              >
+                Create an Account
+              </button>
+              <button 
+                onClick={() => router.push('/')}
+                className="w-full bg-[#090b14] border border-indigo-700 hover:border-fuchsia-500 text-indigo-200 font-bold py-3 px-4 rounded-lg transition-all active:scale-95"
+              >
+                Sign In Instead
+              </button>
+              <button 
+                onClick={() => setShowNoAccountModal(false)}
+                className="w-full text-xs text-indigo-400 hover:text-white mt-2 transition-colors"
+              >
+                Close and try a different email
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- SUCCESS VERIFICATION MODAL --- */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm"></div>
+          
+          <div className="relative w-full max-w-md bg-[#13172e] border border-amber-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(245,158,11,0.25)] z-10 text-center animate-pulse">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-500/20 border border-amber-500/50 mb-6">
+              <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-2">Verification Required</h3>
+            <p className="text-sm text-indigo-200 mb-2">
+              Your free trial account has been successfully verified and is now <span className="font-bold text-amber-400">pending approval</span>.
+            </p>
+            <p className="text-xs text-indigo-300/80 mb-8">
+              An administrator must approve your request before you can access the dashboard. You will receive an email once your account is active.
+            </p>
+            
+            <div className="flex items-center justify-center space-x-2 text-fuchsia-400 text-sm font-mono tracking-widest">
+              <svg className="animate-spin h-4 w-4 text-fuchsia-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>REDIRECTING TO LOGIN...</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <a href="/" className="absolute top-8 left-8 flex items-center text-indigo-300 hover:text-fuchsia-400 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -139,11 +229,11 @@ export default function FreeTrial() {
         
         <div className="text-center mb-8">
           <img src="/brains-logo.png" alt="Brains Logo" className="h-10 w-auto mx-auto mb-6 object-contain" />
-          <h1 className="text-3xl font-bold text-white mb-2">Start your 14-day free trial</h1>
-          <p className="text-sm text-indigo-300/80">Full access to Central Command. No credit card required.</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Request 14-day free trial</h1>
+          <p className="text-sm text-indigo-300/80">Existing operators can request platform access here.</p>
         </div>
 
-        {message && <p className="text-center text-sm font-semibold text-fuchsia-400 mb-4">{message}</p>}
+        {errorMessage && <p className="text-center text-sm font-semibold text-red-400 mb-4">{errorMessage}</p>}
 
         <form className="space-y-5" onSubmit={handleRegister}>
           <div className="grid grid-cols-2 gap-4">
@@ -184,13 +274,13 @@ export default function FreeTrial() {
           </div>
 
           <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-4 px-4 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_15px_rgba(217,70,239,0.4)] active:scale-95 mt-4">
-            Begin Free Trial
+            Request Free Trial
           </button>
         </form>
 
         <div className="text-center mt-6">
           <p className="text-xs text-indigo-300/80">
-            Already have an account? <a href="#" className="text-fuchsia-400 hover:text-fuchsia-300 transition-colors font-semibold">Sign in here</a>.
+            Already verified? <a href="/" className="text-fuchsia-400 hover:text-fuchsia-300 transition-colors font-semibold">Sign in here</a>.
           </p>
         </div>
       </div>

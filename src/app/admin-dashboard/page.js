@@ -100,8 +100,20 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
+  const [userToDelete, setUserToDelete] = useState(null); 
+  
   const [activeTab, setActiveTab] = useState('customer');
-  const [processingId, setProcessingId] = useState(null); // Tracks API requests for approval buttons
+  const [processingId, setProcessingId] = useState(null);
+
+  // --- NEW: Search & Filter States ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Reset filters when switching tabs
+  useEffect(() => {
+    setSearchQuery('');
+    setStatusFilter('all');
+  }, [activeTab]);
 
   useEffect(() => {
     fetchUsers();
@@ -137,13 +149,34 @@ export default function AdminDashboard() {
       if (!response.ok) throw new Error(data.message || 'Failed to update user role');
 
       fetchUsers();
-      alert(`User role successfully updated to ${newRole.toUpperCase()}`);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
   };
 
-  // Handles Approve/Reject actions
+  const confirmAndDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setProcessingId(userToDelete.id);
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', userId: userToDelete.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      setUserToDelete(null); 
+      fetchUsers(); 
+    } catch (err) {
+      alert(`Error deleting user: ${err.message}`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleTrialAction = async (userId, email, name, action) => {
     try {
       setProcessingId(userId);
@@ -174,7 +207,28 @@ export default function AdminDashboard() {
     window.location.href = "/";
   };
 
-  const displayedUsers = users.filter(user => user.role === activeTab);
+  // --- NEW: Advanced Search & Filter Logic ---
+  const displayedUsers = users.filter(user => {
+    if (user.role !== activeTab) return false;
+
+    if (activeTab === 'customer' && statusFilter !== 'all') {
+      const userStatus = user.status || 'new'; 
+      if (userStatus !== statusFilter) return false;
+    }
+
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const company = (user.company || '').toLowerCase();
+      
+      if (!fullName.includes(query) && !email.includes(query) && !company.includes(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   if (loading) {
     return (
@@ -203,10 +257,45 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 py-12">
+    <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 py-6 md:py-12">
       <ParticleBackground />
 
-      {/* Logout Confirmation Modal */}
+      {/* --- Delete Confirmation Modal --- */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setUserToDelete(null)}></div>
+          <div className="relative w-full max-w-sm bg-[#13172e] border border-red-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(239,68,68,0.25)] z-10 text-center">
+            
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-500/20 border border-red-500/50 mb-6">
+              <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-2">Delete Account</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">
+              Are you sure you want to permanently delete <strong className="text-white">{userToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button 
+                onClick={confirmAndDeleteUser}
+                disabled={processingId === userToDelete.id}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              >
+                {processingId === userToDelete.id ? 'Deleting...' : 'Delete'}
+              </button>
+              <button 
+                onClick={() => setUserToDelete(null)}
+                className="flex-1 bg-[#090b14] border border-indigo-700 hover:border-indigo-500 text-indigo-200 font-bold py-2 px-4 rounded-lg transition-all active:scale-95"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Logout Confirmation Modal --- */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setShowLogoutConfirm(false)}></div>
@@ -231,59 +320,59 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+      <div className="relative w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 z-10">
         
         {/* Header */}
-        <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end">
+        <div className="mb-8 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-0">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-1 md:mb-2">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-blue-400">Admin Command</span>
             </h1>
-            <p className="text-indigo-300/80">Manage operators and platform permissions.</p>
+            <p className="text-sm md:text-base text-indigo-300/80">Manage operators and platform permissions.</p>
           </div>
           <button 
             onClick={() => setShowLogoutConfirm(true)}
-            className="mt-4 md:mt-0 px-5 py-2.5 bg-[#13172e]/80 hover:bg-[#1a1f3c]/80 text-indigo-200 text-sm font-semibold rounded-lg border border-indigo-700/50 transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] cursor-pointer"
+            className="px-5 py-2.5 bg-[#13172e]/80 hover:bg-[#1a1f3c]/80 text-indigo-200 text-sm font-semibold rounded-lg border border-indigo-700/50 transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] cursor-pointer"
           >
             Log Out
           </button>
         </div>
 
-        {/* Stats Cards - Tab Switchers */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6">
-            <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-wide">Total Platform Users</h3>
-            <p className="text-4xl font-bold text-white mt-3">{users.length}</p>
+        {/* Stats Cards - Tab Switchers (Aligned horizontally on mobile) */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-10">
+          <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 flex flex-col justify-center items-center text-center">
+            <h3 className="text-[10px] md:text-sm font-bold text-indigo-300 uppercase tracking-wide leading-tight break-words">Total Users</h3>
+            <p className="text-xl md:text-4xl font-bold text-white mt-1 md:mt-3">{users.length}</p>
           </div>
           
           <div 
             onClick={() => setActiveTab('admin')}
-            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 cursor-pointer transition-all ${
+            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 cursor-pointer flex flex-col justify-center items-center text-center transition-all ${
               activeTab === 'admin' 
                 ? 'border-fuchsia-500 shadow-[0_0_20px_rgba(217,70,239,0.2)] ring-1 ring-fuchsia-500/50' 
                 : 'border-indigo-800/50 hover:border-fuchsia-500/50'
             }`}
           >
-            <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors ${activeTab === 'admin' ? 'text-fuchsia-400' : 'text-indigo-300'}`}>
-              Administrators
+            <h3 className={`text-[10px] md:text-sm font-bold uppercase tracking-wide leading-tight break-words transition-colors ${activeTab === 'admin' ? 'text-fuchsia-400' : 'text-indigo-300'}`}>
+              Admins
             </h3>
-            <p className="text-4xl font-bold text-fuchsia-400 mt-3 drop-shadow-[0_0_10px_rgba(232,121,249,0.3)]">
+            <p className="text-xl md:text-4xl font-bold text-fuchsia-400 mt-1 md:mt-3 drop-shadow-[0_0_10px_rgba(232,121,249,0.3)]">
               {users.filter(user => user.role === 'admin').length}
             </p>
           </div>
 
           <div 
             onClick={() => setActiveTab('customer')}
-            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-6 cursor-pointer transition-all ${
+            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 cursor-pointer flex flex-col justify-center items-center text-center transition-all ${
               activeTab === 'customer' 
                 ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.2)] ring-1 ring-blue-500/50' 
                 : 'border-indigo-800/50 hover:border-blue-500/50'
             }`}
           >
-            <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors ${activeTab === 'customer' ? 'text-blue-400' : 'text-indigo-300'}`}>
+            <h3 className={`text-[10px] md:text-sm font-bold uppercase tracking-wide leading-tight break-words transition-colors ${activeTab === 'customer' ? 'text-blue-400' : 'text-indigo-300'}`}>
               Customers
             </h3>
-            <p className="text-4xl font-bold text-blue-400 mt-3 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">
+            <p className="text-xl md:text-4xl font-bold text-blue-400 mt-1 md:mt-3 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">
               {users.filter(user => user.role === 'customer').length}
             </p>
           </div>
@@ -291,12 +380,45 @@ export default function AdminDashboard() {
 
         {/* Dynamic Users Table */}
         <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl shadow-[0_0_40px_rgba(217,70,239,0.15)] overflow-hidden">
-          <div className="px-6 py-5 border-b border-indigo-800/50 flex justify-between items-center bg-[#090b14]/50">
-            <h3 className="text-lg font-bold text-white">
+          
+          {/* --- NEW: Search & Filter Header Area --- */}
+          <div className="px-6 py-4 border-b border-indigo-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#090b14]/50">
+            <h3 className="text-lg font-bold text-white whitespace-nowrap">
               {activeTab === 'admin' ? 'Administrator Roster' : 'Customer Roster'}
             </h3>
-            <div className="text-xs font-mono text-indigo-400/60 bg-indigo-950/50 px-3 py-1 rounded border border-indigo-900/50">
-              FILTER: {activeTab.toUpperCase()}
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-indigo-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Search users..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-indigo-500/60 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 w-full transition-all"
+                />
+              </div>
+
+              {/* Status Filter (Only visible for Customers) */}
+              {activeTab === 'customer' && (
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 cursor-pointer w-full sm:w-40 transition-all appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23818cf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em' }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="new">New Account</option>
+                  <option value="pending">Pending Trial</option>
+                  <option value="active">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              )}
             </div>
           </div>
           
@@ -309,7 +431,6 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Company</th>
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Role</th>
                   
-                  {/* Only show the Status header if viewing customers */}
                   {activeTab === 'customer' && (
                     <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
                   )}
@@ -348,7 +469,6 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     
-                    {/* Only show the Status badge if viewing customers */}
                     {activeTab === 'customer' && (
                       <td className="px-6 py-5 whitespace-nowrap">
                         {user.status === 'pending' ? (
@@ -358,7 +478,7 @@ export default function AdminDashboard() {
                         ) : user.status === 'rejected' ? (
                           <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">REJECTED</span>
                         ) : (
-                          <span className="text-indigo-500/50">-</span>
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">NEW ACCOUNT</span>
                         )}
                       </td>
                     )}
@@ -369,7 +489,6 @@ export default function AdminDashboard() {
                     <td className="px-6 py-5 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center justify-end gap-3">
                         
-                        {/* Only show Approve/Reject buttons if viewing customers AND status is pending */}
                         {activeTab === 'customer' && user.status === 'pending' && (
                           <div className="flex gap-2">
                             <button 
@@ -397,6 +516,17 @@ export default function AdminDashboard() {
                           <option value="customer">Customer</option>
                           <option value="admin">Admin</option>
                         </select>
+
+                        {/* Delete Button */}
+                        <button 
+                          onClick={() => setUserToDelete({ id: user.id, name: user.first_name })}
+                          disabled={processingId === user.id}
+                          className="bg-[#090b14] hover:bg-red-900/30 border border-red-900/50 hover:border-red-500/50 text-red-500/70 hover:text-red-400 text-xs font-bold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50"
+                          title="Delete Account"
+                        >
+                          DELETE
+                        </button>
+
                       </div>
                     </td>
                   </tr>
@@ -407,8 +537,8 @@ export default function AdminDashboard() {
 
           {displayedUsers.length === 0 && (
             <div className="text-center py-16">
-              <div className="text-indigo-400/60 mb-2">No {activeTab}s found in database.</div>
-              <div className="w-16 h-1 bg-indigo-900/50 mx-auto rounded-full"></div>
+              <div className="text-indigo-400/60 mb-2">No users found matching your filters.</div>
+              <div className="w-16 h-1 bg-indigo-900/50 mx-auto rounded-full mt-4"></div>
             </div>
           )}
         </div>

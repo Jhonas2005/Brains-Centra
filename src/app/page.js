@@ -3,8 +3,9 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
 
-// --- Sign In Pop-up Modal Component ---
+// --- Sign In & Forgot Password Pop-up Modal Component ---
 const SignInModal = ({ onClose }) => {
+  const [view, setView] = useState("login"); // "login" or "forgot"
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -16,7 +17,6 @@ const SignInModal = ({ onClose }) => {
     e.preventDefault();
     setMessage("Verifying...");
 
-    // Gather form data
     const email = e.target.email.value;
     const password = e.target.password.value;
 
@@ -31,26 +31,56 @@ const SignInModal = ({ onClose }) => {
 
       if (res.ok) {
         setMessage("Success! Redirecting...");
-        // Redirect based on role
         if (data.role === 'admin') {
-          window.location.href = "/admin-dashboard"; // Update with actual route later
+          window.location.href = "/admin-dashboard"; 
         } else {
-          window.location.href = "/user-dashboard"; // Update with actual route later
+          window.location.href = "/user-dashboard"; 
         }
       } else {
-        setMessage(data.message); // Displays error from server
+        setMessage(data.message); 
       }
     } catch (error) {
       setMessage("Connection error. Please try again.");
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setMessage("Sending reset link...");
+    
+    const email = e.target.email.value;
+
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage("Success! Check your email for the reset link.");
+        e.target.reset(); // Clear the form
+      } else {
+        setMessage(data.message);
+      }
+    } catch (error) {
+      setMessage("Connection error. Please try again.");
+    }
+  };
+
+  const toggleView = (newView) => {
+    setView(newView);
+    setMessage(""); // Clear messages when switching views
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={onClose}></div>
       
-      <div className="relative w-full max-w-md bg-[#13172e] border border-indigo-800/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(217,70,239,0.15)] z-10">
-        <button onClick={onClose} className="absolute top-4 right-4 text-indigo-400 hover:text-fuchsia-400">
+      <div className="relative w-full max-w-md bg-[#13172e] border border-indigo-800/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(217,70,239,0.15)] z-10 transition-all duration-300">
+        <button onClick={onClose} className="absolute top-4 right-4 text-indigo-400 hover:text-fuchsia-400 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -58,30 +88,57 @@ const SignInModal = ({ onClose }) => {
         
         <div className="text-center mb-8">
           <img src="/brains-logo.png" alt="Brains Logo" className="h-10 w-auto mx-auto mb-4 object-contain" />
-          <h2 className="text-2xl font-bold text-white mb-1">Welcome Back</h2>
-          <p className="text-sm text-indigo-300/80">Sign in to Central Command</p>
+          <h2 className="text-2xl font-bold text-white mb-1">
+            {view === "login" ? "Welcome Back" : "Reset Password"}
+          </h2>
+          <p className="text-sm text-indigo-300/80">
+            {view === "login" ? "Sign in to Central Command" : "Enter your email to receive a secure reset link"}
+          </p>
         </div>
         
         {/* Status Message */}
-        {message && <p className="text-center text-sm font-semibold text-fuchsia-400 mb-4">{message}</p>}
+        {message && <p className={`text-center text-sm font-semibold mb-4 ${message.includes('Success') ? 'text-emerald-400' : 'text-fuchsia-400'}`}>{message}</p>}
 
-        {/* Connect the onSubmit handler */}
-        <form className="space-y-4" onSubmit={handleSignIn}>
-          <div>
-            <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Email Address</label>
-            {/* Added name="email" */}
-            <input name="email" type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50" placeholder="admin@brains.asia" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Password</label>
-            {/* Added name="password" */}
-            <input name="password" type="password" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50" placeholder="••••••••" />
-          </div>
-          
-          <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6">
-            Secure Sign In
-          </button>
-        </form>
+        {view === "login" ? (
+          // --- LOGIN FORM ---
+          <form className="space-y-4" onSubmit={handleSignIn}>
+            <div>
+              <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Email Address</label>
+              <input name="email" type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="admin@brains.asia" />
+            </div>
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide">Password</label>
+                <button type="button" onClick={() => toggleView("forgot")} className="text-xs text-indigo-400 hover:text-fuchsia-400 font-semibold transition-colors">
+                  Forgot password?
+                </button>
+              </div>
+              <input name="password" type="password" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="••••••••" />
+            </div>
+            
+            <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6 transition-all duration-300 shadow-[0_4px_14px_rgba(217,70,239,0.25)] active:scale-95">
+              Secure Sign In
+            </button>
+          </form>
+        ) : (
+          // --- FORGOT PASSWORD FORM ---
+          <form className="space-y-4" onSubmit={handleResetPassword}>
+            <div>
+              <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Email Address</label>
+              <input name="email" type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="your@email.com" />
+            </div>
+            
+            <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold py-3 px-4 rounded-lg mt-6 transition-all duration-300 shadow-[0_4px_14px_rgba(245,158,11,0.25)] active:scale-95">
+              Send Reset Link
+            </button>
+
+            <div className="text-center mt-4 pt-2 border-t border-indigo-900/50">
+              <button type="button" onClick={() => toggleView("login")} className="text-xs text-indigo-400 hover:text-white font-semibold transition-colors">
+                ← Back to Sign In
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -98,18 +155,16 @@ const ParticleBackground = () => {
     let animationFrameId;
     let particles = [];
 
-    // Resize canvas to fill window
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      initParticles(); // Recreate particles to fit new dimensions
+      initParticles(); 
     };
 
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
-        // Random velocity between -0.5 and 0.5
         this.vx = (Math.random() - 0.5) * 1;
         this.vy = (Math.random() - 0.5) * 1;
         this.radius = Math.random() * 1.5 + 0.5;
@@ -119,7 +174,6 @@ const ParticleBackground = () => {
         this.x += this.vx;
         this.y += this.vy;
 
-        // Bounce off edges
         if (this.x < 0 || this.x > canvas.width) this.vx = -this.vx;
         if (this.y < 0 || this.y > canvas.height) this.vy = -this.vy;
       }
@@ -127,14 +181,13 @@ const ParticleBackground = () => {
       draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(167, 139, 250, 0.6)'; // Soft purple dot
+        ctx.fillStyle = 'rgba(167, 139, 250, 0.6)'; 
         ctx.fill();
       }
     }
 
     const initParticles = () => {
       particles = [];
-      // Adjust particle count based on screen size for performance
       const numParticles = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 15000), 120);
       for (let i = 0; i < numParticles; i++) {
         particles.push(new Particle());
@@ -148,12 +201,10 @@ const ParticleBackground = () => {
           const dy = particles[i].y - particles[j].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Connect particles if they are close enough
           if (distance < 150) {
             ctx.beginPath();
-            // Opacity fades out as distance increases
             const opacity = 1 - distance / 150;
-            ctx.strokeStyle = `rgba(129, 140, 248, ${opacity * 0.4})`; // Faded indigo line
+            ctx.strokeStyle = `rgba(129, 140, 248, ${opacity * 0.4})`; 
             ctx.lineWidth = 1;
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
@@ -188,7 +239,6 @@ const ParticleBackground = () => {
   return (
     <div className="fixed inset-0 z-[-1] bg-[#090b14] overflow-hidden pointer-events-none">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      {/* Soft floating orbs for deep background color */}
       <div className="absolute top-[10%] left-[10%] w-[40vw] h-[40vw] rounded-full bg-fuchsia-600/10 blur-[120px] animate-pulse" style={{ animationDuration: '6s' }}></div>
       <div className="absolute bottom-[10%] right-[10%] w-[40vw] h-[40vw] rounded-full bg-blue-600/5 blur-[120px] animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }}></div>
     </div>
@@ -359,8 +409,9 @@ const FeatureCard = ({ title, desc }) => (
   </div>
 );
 
+// CHANGED: Expanded max-w-7xl to max-w-[1600px] and adjusted padding
 const ModuleSection = ({ data }) => (
-  <section id={data.id} className="py-24 border-b border-indigo-900/30 max-w-7xl mx-auto px-6 scroll-mt-20">
+  <section id={data.id} className="py-24 border-b border-indigo-900/30 max-w-[1600px] mx-auto px-8 lg:px-12 scroll-mt-20">
     <FadeIn>
       <div className="flex items-center gap-3 mb-6">
         <span className="text-[10px] font-mono border border-fuchsia-800/50 bg-fuchsia-900/20 text-fuchsia-300 px-2 py-1 rounded">
@@ -387,7 +438,6 @@ const ModuleSection = ({ data }) => (
             {data.description}
           </p>
           <div className="flex flex-col gap-3">
-            {/* UPDATED: Changed from <button> to <a href> link pointing to /free-trial */}
             <a href="/free-trial" className="block text-center bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.4)] active:scale-95">
               Request Demo
             </a>
@@ -412,7 +462,7 @@ const ModuleSection = ({ data }) => (
 // --- Main Page Component ---
 export default function CentralCommand() {
   const [activeSection, setActiveSection] = useState("platform");
-  const [isSignInOpen, setIsSignInOpen] = useState(false); // State to track the modal
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -441,25 +491,21 @@ export default function CentralCommand() {
   return (
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 bg-transparent">
       
-      {/* Background Component injected behind all content */}
       <ParticleBackground />
 
-      {/* Render the Modal when state is true */}
       {isSignInOpen && <SignInModal onClose={() => setIsSignInOpen(false)} />}
 
-      {/* Sticky Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-indigo-900/50 bg-[#090b14]/70 backdrop-blur-md sticky top-0 z-50">
+      {/* CHANGED: Expanded padding to px-8 lg:px-12 */}
+      <nav className="flex items-center justify-between px-8 lg:px-12 py-4 border-b border-indigo-900/50 bg-[#090b14]/70 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center space-x-3">
           <div className="flex items-center gap-2">
             <img src="/brains-logo.png" alt="Brains Infinite Innovations" className="h-8 w-auto object-contain"/>
           </div>
           <div className="flex items-center gap-2 border border-indigo-800 rounded bg-indigo-950/50 px-2 py-0.5">
             <span className="text-xs font-semibold text-indigo-200">Central Command</span>
-            <span className="text-[10px] bg-indigo-900 text-indigo-100 px-1 rounded">SaaS</span>
           </div>
         </div>
         
-        {/* Animated Navigation Links */}
         <div className="hidden md:flex items-center space-x-2 text-sm font-medium">
           {navLinks.map((link) => (
             <a 
@@ -490,9 +536,8 @@ export default function CentralCommand() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <header id="platform" className="flex flex-col items-center justify-center text-center pt-32 pb-24 px-4 border-b border-indigo-900/30 bg-gradient-to-b from-[#090b14]/40 to-[#0d111f]/40 scroll-mt-24">
-        
+      {/* CHANGED: Adjusted hero padding px-4 -> px-8 */}
+      <header id="platform" className="flex flex-col items-center justify-center text-center pt-32 pb-24 px-8 border-b border-indigo-900/30 bg-gradient-to-b from-[#090b14]/40 to-[#0d111f]/40 scroll-mt-24">
         <FadeIn delay={150}>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl text-white">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 via-indigo-400 to-blue-400">Central Command</span><br />
@@ -519,8 +564,8 @@ export default function CentralCommand() {
         </FadeIn>
       </header>
 
-      {/* Brains Offerings Divider */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-indigo-900/30 bg-[#101426]/60 backdrop-blur-md py-12 px-8 shadow-lg relative z-10">
+      {/* CHANGED: Expanded padding to px-8 lg:px-12 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-indigo-900/30 bg-[#101426]/60 backdrop-blur-md py-12 px-8 lg:px-12 shadow-lg relative z-10">
         {[
           { stat: "7", title: "Our Brands", desc: "ASAP!, KlassMall, The Finest Fit & more", color: "text-fuchsia-400", shadow: "drop-shadow-[0_0_10px_rgba(232,121,249,0.3)]" },
           { stat: "9", title: "Services Offered", desc: "Systems Integration, Branding, Dev & more", color: "text-indigo-400", shadow: "drop-shadow-[0_0_10px_rgba(129,140,248,0.3)]" },
@@ -537,13 +582,12 @@ export default function CentralCommand() {
         ))}
       </div>
 
-      {/* Dynamic Module Sections */}
       {modulesData.map((module) => (
         <ModuleSection key={module.id} data={module} />
       ))}
 
-      {/* Integration Layer Section */}
-      <section className="py-24 border-b border-indigo-900/30 bg-[#0d111f]/60 backdrop-blur-sm text-center px-6">
+      {/* CHANGED: Expanded padding to px-8 lg:px-12 */}
+      <section className="py-24 border-b border-indigo-900/30 bg-[#0d111f]/60 backdrop-blur-sm text-center px-8 lg:px-12">
         <FadeIn>
           <h3 className="text-xs font-bold text-fuchsia-500 tracking-[0.2em] uppercase mb-4">Open Integration Layer</h3>
           <h2 className="text-4xl font-bold mb-6 text-white">Connects to your existing stack.</h2>
@@ -562,15 +606,15 @@ export default function CentralCommand() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-24 border-b border-indigo-900/30 px-6 backdrop-blur-sm">
+      {/* CHANGED: Expanded padding to px-8 lg:px-12 and widened max-w-6xl to max-w-[1600px] */}
+      <section className="py-24 border-b border-indigo-900/30 px-8 lg:px-12 backdrop-blur-sm">
         <FadeIn>
           <div className="text-center mb-16">
             <h3 className="text-xs font-bold text-fuchsia-500 tracking-[0.2em] uppercase mb-4">From Operators</h3>
             <h2 className="text-4xl font-bold text-white">Trusted at scale.</h2>
           </div>
         </FadeIn>
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-[1600px] mx-auto">
           {[
             {
               quote: `"Central Command gave us a single operations view across 47 hotels. We decommissioned six legacy systems in the first quarter."`,
@@ -603,10 +647,10 @@ export default function CentralCommand() {
         </div>
       </section>
 
-      {/* Footer / CTA Section */}
-      <footer className="py-24 px-6 bg-[#080a12]/90 backdrop-blur-md">
+      {/* CHANGED: Expanded padding to px-8 lg:px-12 and widened max-w-6xl to max-w-[1600px] */}
+      <footer className="py-24 px-8 lg:px-12 bg-[#080a12]/90 backdrop-blur-md">
         <FadeIn>
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 mb-24 text-center md:text-left">
+          <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-8 mb-24 text-center md:text-left">
             <div>
               <h2 className="text-4xl font-bold text-white mb-2">Ready to take command?</h2>
               <p className="text-indigo-200/80">Start with one module. Scale to the full platform. No lock-in.</p>
@@ -622,10 +666,10 @@ export default function CentralCommand() {
           </div>
         </FadeIn>
 
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center pt-8 border-t border-indigo-900/50 text-xs text-indigo-400/60">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center pt-8 border-t border-indigo-900/50 text-xs text-indigo-400/60">
           <div className="flex items-center gap-3 mb-4 md:mb-0">
              <img src="/brains-logo.png" alt="Brains Infinite Innovations" className="h-6 w-auto object-contain"/>
-             <span className="font-semibold text-indigo-200">Central Command SaaS</span>
+             <span className="font-semibold text-indigo-200">Central Command</span>
           </div>
           <div className="flex gap-6 mb-4 md:mb-0">
             <a href="#" className="hover:text-white transition-colors">Privacy</a>

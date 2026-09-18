@@ -94,14 +94,14 @@ const ParticleBackground = () => {
   );
 };
 
-// Define all available modules
+// Define all available modules (added shortName for mobile sidebar)
 const ALL_MODULES = [
-  { id: "overview", label: "Command Overview", icon: "🌐" },
-  { id: "hms", label: "Frontdesk (HMS)", icon: "🏨" },
-  { id: "pms", label: "Landlord (PMS)", icon: "🏢" },
-  { id: "hvms", label: "Butler (HVMS)", icon: "📋" },
-  { id: "bms", label: "Sekyu (BMS)", icon: "🏗️" },
-  { id: "iot", label: "Housekeeper (IoT)", icon: "📡" }
+  { id: "overview", label: "Command Overview", shortName: "HOME", icon: "🌐" },
+  { id: "hms", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨" },
+  { id: "pms", label: "Landlord (PMS)", shortName: "PMS", icon: "🏢" },
+  { id: "hvms", label: "Butler (HVMS)", shortName: "HVMS", icon: "📋" },
+  { id: "bms", label: "Sekyu (BMS)", shortName: "BMS", icon: "🏗️" },
+  { id: "iot", label: "Housekeeper (IoT)", shortName: "IoT", icon: "📡" }
 ];
 
 export default function UserDashboard() {
@@ -168,7 +168,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 py-8">
+    <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 py-6 md:py-8">
       <ParticleBackground />
 
       {/* --- Logout Confirmation Modal --- */}
@@ -196,64 +196,74 @@ export default function UserDashboard() {
         </div>
       )}
 
-      {/* CHANGED: max-w-7xl -> max-w-[1600px] and px-6 -> px-8 lg:px-12 */}
-      <div className="w-full max-w-[1600px] mx-auto px-8 lg:px-12 mb-8 flex justify-between items-center z-10 relative border-b border-indigo-900/50 pb-6">
+      {/* Main Header Wrapper */}
+      <div className="w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 mb-6 md:mb-8 flex flex-row justify-between items-center z-10 relative border-b border-indigo-900/50 pb-4 md:pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">
+          <h1 className="text-xl md:text-3xl font-bold text-white mb-1">
             Welcome, {userData?.first_name}
           </h1>
-          <p className="text-indigo-300/80 text-sm font-mono tracking-wide">{userData?.company} • Operator Workspace</p>
+          <p className="text-indigo-300/80 text-[10px] md:text-sm font-mono tracking-wide">
+            {userData?.company} <span className="hidden sm:inline">• Operator Workspace</span>
+          </p>
         </div>
         <button 
           onClick={() => setShowLogoutConfirm(true)}
-          className="px-5 py-2.5 bg-[#13172e]/80 hover:bg-[#1a1f3c]/80 text-indigo-200 text-sm font-semibold rounded-lg border border-indigo-700/50 transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+          className="px-4 md:px-5 py-2 md:py-2.5 bg-[#13172e]/80 hover:bg-[#1a1f3c]/80 text-indigo-200 text-xs md:text-sm font-semibold rounded-lg border border-indigo-700/50 transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
         >
           Sign Out
         </button>
       </div>
 
-      {/* CHANGED: max-w-7xl -> max-w-[1600px] and px-6 -> px-8 lg:px-12 */}
-      <div className="relative w-full max-w-[1600px] mx-auto px-8 lg:px-12 z-10 flex flex-col lg:flex-row gap-8">
+      {/* Main Content Area - Forces Flex Row Always */}
+      <div className="relative w-full max-w-[1600px] mx-auto px-2 md:px-4 lg:px-12 z-10 flex flex-row gap-3 md:gap-6 lg:gap-8">
         
         {/* ========================================= */}
-        {/* SIDEBAR START                             */}
+        {/* PERSISTENT LEFT SIDEBAR                   */}
         {/* ========================================= */}
-        {/* CHANGED: w-64 -> w-72 for a slightly wider, more proportionate sidebar */}
-        <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-2">
-          <div className="text-xs font-bold text-indigo-400/60 uppercase tracking-widest mb-2 px-3">
+        {/* On mobile: compact width (w-16 or w-20). On desktop: full width (lg:w-72) */}
+        <div className="w-[70px] sm:w-20 lg:w-72 flex-shrink-0 flex flex-col gap-2 pt-2 md:pt-0">
+          <div className="hidden lg:block text-xs font-bold text-indigo-400/60 uppercase tracking-widest mb-2 px-3">
             Navigation
           </div>
           
-          {ALL_MODULES.map((module) => {
-            const isOverview = module.id === 'overview';
-            const isSubscribed = userData?.subscribed_modules?.includes(module.id);
-            const isClickable = isOverview || isSubscribed;
-            const isActive = activeModule === module.id;
+          <div className="flex flex-col gap-2 w-full">
+            {ALL_MODULES.map((module) => {
+              const isOverview = module.id === 'overview';
+              const isSubscribed = userData?.subscribed_modules?.includes(module.id);
+              const isClickable = isOverview || isSubscribed;
+              const isActive = activeModule === module.id;
 
-            return (
-              <button
-                key={module.id}
-                onClick={() => isClickable && setActiveModule(module.id)}
-                disabled={!isClickable}
-                className={`flex items-center text-left w-full px-4 py-3.5 rounded-xl transition-all duration-200 group ${
-                  isActive 
-                    ? 'bg-gradient-to-r from-fuchsia-900/40 to-blue-900/40 border border-fuchsia-500/50 text-white shadow-[0_0_15px_rgba(217,70,239,0.15)]' 
-                    : isClickable
-                      ? 'bg-transparent border border-transparent text-indigo-200 hover:bg-[#13172e]/80 hover:border-indigo-700/50'
-                      : 'bg-transparent border border-transparent text-indigo-500/40 cursor-not-allowed'
-                }`}
-              >
-                <span className="text-lg mr-3 opacity-90 group-hover:scale-110 transition-transform">{module.icon}</span>
-                <span className="flex-1 text-sm font-semibold">{module.label}</span>
-                
-                {!isClickable && (
-                  <svg className="w-4 h-4 text-indigo-500/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={module.id}
+                  onClick={() => isClickable && setActiveModule(module.id)}
+                  disabled={!isClickable}
+                  className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start w-full px-2 lg:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 group ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-fuchsia-900/40 to-blue-900/40 border border-fuchsia-500/50 text-white shadow-[0_0_15px_rgba(217,70,239,0.15)]' 
+                      : isClickable
+                        ? 'bg-[#13172e]/40 lg:bg-transparent border border-indigo-800/30 lg:border-transparent text-indigo-200 hover:bg-[#13172e]/80 hover:border-indigo-700/50'
+                        : 'bg-[#13172e]/20 lg:bg-transparent border border-indigo-900/20 lg:border-transparent text-indigo-500/40 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="text-xl md:text-2xl lg:mr-3 opacity-90 group-hover:scale-110 transition-transform">{module.icon}</span>
+                  
+                  {/* Text: Short name on mobile, full name on desktop */}
+                  <span className="flex-1 mt-1 lg:mt-0 text-[9px] md:text-[10px] lg:text-sm font-semibold text-center lg:text-left leading-tight lg:leading-normal">
+                    <span className="block lg:hidden">{module.shortName}</span>
+                    <span className="hidden lg:block">{module.label}</span>
+                  </span>
+                  
+                  {/* Lock icon only shows on desktop to save mobile space */}
+                  {!isClickable && (
+                    <svg className="w-4 h-4 text-indigo-500/40 ml-2 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
         {/* ========================================= */}
         {/* SIDEBAR END                               */}
@@ -262,79 +272,79 @@ export default function UserDashboard() {
         {/* ========================================= */}
         {/* MAIN WORKSPACE START                      */}
         {/* ========================================= */}
-        <div className="flex-grow flex flex-col gap-6 w-full overflow-hidden">
+        <div className="flex-grow flex flex-col gap-4 md:gap-6 w-full overflow-hidden min-w-0 pr-2 md:pr-0">
           
           {/* TRIAL BANNER */}
-          <div className="relative overflow-hidden bg-[#13172e]/90 backdrop-blur-md rounded-2xl border border-amber-500/30 shadow-[0_8px_30px_rgba(245,158,11,0.15)] p-6 flex flex-col md:flex-row items-center justify-between group w-full">
+          <div className="relative overflow-hidden bg-[#13172e]/90 backdrop-blur-md rounded-2xl border border-amber-500/30 shadow-[0_8px_30px_rgba(245,158,11,0.15)] p-4 md:p-6 flex flex-col md:flex-row items-center justify-between text-center md:text-left gap-4 md:gap-0 group w-full">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-fuchsia-500 to-blue-500 opacity-70"></div>
 
-            <div className="flex items-center gap-5 mb-4 md:mb-0">
-              <div className="w-16 h-16 rounded-full border-4 border-amber-500/20 border-t-amber-500 flex items-center justify-center bg-[#090b14]/50 shadow-[0_0_15px_rgba(245,158,11,0.2)] flex-shrink-0">
-                <span className="text-2xl font-bold text-amber-400">{daysLeft}</span>
+            <div className="flex flex-col xl:flex-row items-center gap-3 md:gap-5">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 md:border-4 border-amber-500/20 border-t-amber-500 flex items-center justify-center bg-[#090b14]/50 shadow-[0_0_15px_rgba(245,158,11,0.2)] flex-shrink-0">
+                <span className="text-xl md:text-2xl font-bold text-amber-400">{daysLeft}</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                <h2 className="text-base md:text-xl font-bold text-white mb-1 flex flex-wrap justify-center xl:justify-start items-center gap-2">
                   Free Trial Active
-                  {daysLeft <= 3 && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/50 uppercase tracking-widest animate-pulse">Ending Soon</span>}
+                  {daysLeft <= 3 && <span className="px-2 py-0.5 rounded text-[9px] md:text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/50 uppercase tracking-widest animate-pulse">Ending Soon</span>}
                 </h2>
-                <p className="text-sm text-indigo-200/80">
-                  You have <span className="font-bold text-amber-400">{daysLeft} days</span> remaining of full platform access.
+                <p className="text-xs md:text-sm text-indigo-200/80">
+                  <span className="font-bold text-amber-400">{daysLeft} days</span> remaining of access.
                 </p>
               </div>
             </div>
-            <button className="w-full md:w-auto bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_20px_rgba(217,70,239,0.4)] active:scale-95 whitespace-nowrap">
-              Upgrade to Full Access
+            <button className="w-full md:w-auto bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white text-xs md:text-base font-bold py-2.5 md:py-3 px-4 md:px-8 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_20px_rgba(217,70,239,0.4)] active:scale-95 whitespace-nowrap">
+              Upgrade
             </button>
           </div>
 
           {/* DYNAMIC CONTENT AREA */}
-          <div className="bg-[#13172e]/50 border border-indigo-800/30 rounded-2xl p-6 md:p-8 min-h-[600px] w-full flex flex-col">
+          <div className="bg-[#13172e]/50 border border-indigo-800/30 rounded-2xl p-4 md:p-8 min-h-[600px] w-full flex flex-col">
             
             {activeModule === 'overview' && (
-              <div className="h-full flex flex-col gap-6 w-full">
+              <div className="h-full flex flex-col gap-4 md:gap-6 w-full">
                 
                 {/* Dashboard Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-indigo-800/50 pb-4 gap-4 w-full">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-indigo-800/50 pb-4 gap-4 w-full">
                   <div>
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                      <span className="text-2xl">🌐</span> Command Overview
+                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2">
+                      <span className="text-xl md:text-2xl">🌐</span> Command Overview
                     </h3>
-                    <p className="text-sm text-indigo-300/60 mt-1">System telemetry and aggregate metrics across all active modules</p>
+                    <p className="text-[10px] md:text-sm text-indigo-300/60 mt-1">System telemetry and aggregate metrics across all active modules</p>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">All Systems Operational</span>
-                  </div>
-                </div>
-
-                {/* Quick Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
-                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-5 shadow-lg">
-                    <div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">TOTAL PROPERTIES</div>
-                    <div className="text-3xl text-white font-bold">2</div>
-                  </div>
-                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-5 shadow-lg">
-                    <div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">ACTIVE LEASES</div>
-                    <div className="text-3xl text-white font-bold">128</div>
-                  </div>
-                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-5 shadow-lg">
-                    <div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">OPEN ALERTS</div>
-                    <div className="text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div>
-                  </div>
-                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-5 shadow-lg">
-                    <div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">NETWORK I/O</div>
-                    <div className="text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">99.8%</div>
+                  <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.1)] self-start lg:self-auto">
+                    <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                    <span className="text-[9px] md:text-xs font-bold text-emerald-400 uppercase tracking-widest">All Systems Operational</span>
                   </div>
                 </div>
 
-                {/* --- NEW: Split Bottom Layout --- */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2 w-full flex-grow">
+                {/* Quick Stats Grid - Updated for mobile to 2 columns instead of 1 */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 w-full">
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">PROPERTIES</div>
+                    <div className="text-xl md:text-3xl text-white font-bold">2</div>
+                  </div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">LEASES</div>
+                    <div className="text-xl md:text-3xl text-white font-bold">128</div>
+                  </div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">OPEN ALERTS</div>
+                    <div className="text-xl md:text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div>
+                  </div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">NETWORK</div>
+                    <div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">99%</div>
+                  </div>
+                </div>
+
+                {/* Split Bottom Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mt-2 w-full flex-grow">
                   
-                  {/* Left Column: Recent Activity (Spans 2/3 of space) */}
-                  <div className="lg:col-span-2 bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-6 flex flex-col h-full shadow-lg">
-                    <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 border-b border-indigo-900/50 pb-2">Live Activity Feed</h4>
+                  {/* Left Column: Recent Activity */}
+                  <div className="lg:col-span-2 bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-4 md:p-6 flex flex-col h-full shadow-lg">
+                    <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Live Activity Feed</h4>
                     
-                    <div className="flex flex-col gap-5 overflow-y-auto pr-2">
+                    <div className="flex flex-col gap-4 overflow-y-auto pr-2">
                       {[
                         { time: '10:42 AM', event: 'Frontdesk: VIP Guest Checked In (Room 402)', type: 'info', user: 'Auto' },
                         { time: '10:15 AM', event: 'Landlord: New Maintenance Ticket #8821 Created', type: 'warning', user: 'Tenant App' },
@@ -342,52 +352,52 @@ export default function UserDashboard() {
                         { time: '08:00 AM', event: 'System: Daily automated database backup completed', type: 'success', user: 'Server' },
                         { time: '07:45 AM', event: 'Frontdesk: Night Audit finalized successfully', type: 'info', user: 'Jane (Admin)' },
                       ].map((log, i) => (
-                        <div key={i} className="flex items-start gap-4 hover:bg-indigo-900/10 p-2 -mx-2 rounded transition-colors">
-                          <span className="text-xs font-mono text-indigo-400/60 mt-0.5 min-w-[75px]">{log.time}</span>
-                          <span className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${
+                        <div key={i} className="flex items-start gap-2 md:gap-4 hover:bg-indigo-900/10 p-2 -mx-2 rounded transition-colors">
+                          <span className="text-[9px] md:text-xs font-mono text-indigo-400/60 mt-0.5 min-w-[55px] md:min-w-[75px]">{log.time}</span>
+                          <span className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-full mt-1 flex-shrink-0 ${
                             log.type === 'error' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' :
                             log.type === 'warning' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' :
                             log.type === 'success' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' :
                             'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]'
                           }`}></span>
                           <div className="flex-1">
-                            <p className="text-sm text-indigo-100">{log.event}</p>
-                            <p className="text-[10px] text-indigo-400/50 font-mono mt-1">SOURCE: {log.user}</p>
+                            <p className="text-xs md:text-sm text-indigo-100">{log.event}</p>
+                            <p className="text-[8px] md:text-[10px] text-indigo-400/50 font-mono mt-1">SOURCE: {log.user}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Right Column: Quick Actions & Health (Spans 1/3 of space) */}
-                  <div className="lg:col-span-1 flex flex-col gap-6">
+                  {/* Right Column: Quick Actions & Health */}
+                  <div className="lg:col-span-1 flex flex-col gap-4 md:gap-6">
                     
                     {/* Quick Actions Panel */}
-                    <div className="bg-[#13172e]/60 border border-fuchsia-500/20 rounded-xl p-6 shadow-lg">
-                      <h4 className="text-sm font-bold text-fuchsia-300 uppercase tracking-widest mb-4">Quick Actions</h4>
-                      <div className="flex flex-col gap-3">
-                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-sm py-3 px-4 rounded-lg transition-colors group">
-                          <span>🏨 New Reservation</span>
+                    <div className="bg-[#13172e]/60 border border-fuchsia-500/20 rounded-xl p-4 md:p-6 shadow-lg">
+                      <h4 className="text-xs md:text-sm font-bold text-fuchsia-300 uppercase tracking-widest mb-4">Quick Actions</h4>
+                      <div className="flex flex-col gap-2 md:gap-3">
+                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-xs md:text-sm py-2 md:py-3 px-3 md:px-4 rounded-lg transition-colors group">
+                          <span className="truncate pr-2">🏨 New Reservation</span>
                           <span className="text-indigo-500 group-hover:text-fuchsia-400 transition-colors">→</span>
                         </button>
-                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-sm py-3 px-4 rounded-lg transition-colors group">
-                          <span>🏢 Create Work Order</span>
+                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-xs md:text-sm py-2 md:py-3 px-3 md:px-4 rounded-lg transition-colors group">
+                          <span className="truncate pr-2">🏢 Create Work Order</span>
                           <span className="text-indigo-500 group-hover:text-fuchsia-400 transition-colors">→</span>
                         </button>
-                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-sm py-3 px-4 rounded-lg transition-colors group">
-                          <span>📢 Broadcast Message</span>
+                        <button className="flex items-center justify-between w-full bg-[#090b14] border border-indigo-700/50 hover:border-fuchsia-500/50 text-indigo-200 text-xs md:text-sm py-2 md:py-3 px-3 md:px-4 rounded-lg transition-colors group">
+                          <span className="truncate pr-2">📢 Broadcast Message</span>
                           <span className="text-indigo-500 group-hover:text-fuchsia-400 transition-colors">→</span>
                         </button>
                       </div>
                     </div>
 
                     {/* System Health Panel */}
-                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-6 flex-grow shadow-lg">
-                      <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Module Health</h4>
+                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-4 md:p-6 flex-grow shadow-lg">
+                      <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Module Health</h4>
                       <div className="space-y-4">
                         <div>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-indigo-200 font-mono">Database Load</span>
+                          <div className="flex justify-between text-[9px] md:text-xs mb-1">
+                            <span className="text-indigo-200 font-mono">DB Load</span>
                             <span className="text-emerald-400">12%</span>
                           </div>
                           <div className="w-full bg-indigo-950/50 rounded-full h-1.5">
@@ -395,8 +405,8 @@ export default function UserDashboard() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-indigo-200 font-mono">API Latency</span>
+                          <div className="flex justify-between text-[9px] md:text-xs mb-1">
+                            <span className="text-indigo-200 font-mono">API Ping</span>
                             <span className="text-emerald-400">45ms</span>
                           </div>
                           <div className="w-full bg-indigo-950/50 rounded-full h-1.5">
@@ -404,8 +414,8 @@ export default function UserDashboard() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-indigo-200 font-mono">Storage Used</span>
+                          <div className="flex justify-between text-[9px] md:text-xs mb-1">
+                            <span className="text-indigo-200 font-mono">Storage</span>
                             <span className="text-amber-400">78%</span>
                           </div>
                           <div className="w-full bg-indigo-950/50 rounded-full h-1.5">
@@ -423,22 +433,22 @@ export default function UserDashboard() {
 
             {activeModule === 'hms' && (
               <div>
-                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-indigo-800/50 pb-4"><span className="text-2xl">🏨</span> Frontdesk (HMS)</h3>
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">OCCUPANCY</div><div className="text-3xl text-white font-bold">82%</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">ARRIVALS TODAY</div><div className="text-3xl text-white font-bold">14</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">PENDING REQUESTS</div><div className="text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div></div>
+                 <h3 className="text-base md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2 border-b border-indigo-800/50 pb-4"><span className="text-xl md:text-2xl">🏨</span> Frontdesk (HMS)</h3>
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">OCCUPANCY</div><div className="text-xl md:text-3xl text-white font-bold">82%</div></div>
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">ARRIVALS</div><div className="text-xl md:text-3xl text-white font-bold">14</div></div>
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg col-span-2 md:col-span-1"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">PENDING</div><div className="text-xl md:text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div></div>
                  </div>
               </div>
             )}
 
             {activeModule === 'pms' && (
               <div>
-                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-indigo-800/50 pb-4"><span className="text-2xl">🏢</span> Landlord (PMS)</h3>
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">ACTIVE LEASES</div><div className="text-3xl text-white font-bold">128</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">OPEN WORK ORDERS</div><div className="text-3xl text-fuchsia-400 font-bold drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]">7</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg"><div className="text-xs text-indigo-400 font-bold mb-2 tracking-wider">COLLECTION RATE</div><div className="text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">94%</div></div>
+                 <h3 className="text-base md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2 border-b border-indigo-800/50 pb-4"><span className="text-xl md:text-2xl">🏢</span> Landlord (PMS)</h3>
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">LEASES</div><div className="text-xl md:text-3xl text-white font-bold">128</div></div>
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">WORK ORDERS</div><div className="text-xl md:text-3xl text-fuchsia-400 font-bold drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]">7</div></div>
+                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-6 shadow-lg col-span-2 md:col-span-1"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">COLLECTION</div><div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">94%</div></div>
                  </div>
               </div>
             )}

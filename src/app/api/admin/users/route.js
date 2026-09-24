@@ -8,9 +8,10 @@ export async function GET(req) {
       return NextResponse.json({ message: "Server configuration error" }, { status: 500 });
     }
 
+    // UPDATED: Added `subscribed_modules` to the select query
     const { data: profiles, error } = await supabaseAdmin
       .from('profiles')
-      .select(`id, first_name, last_name, email, company, role, created_at, updated_at, status`)
+      .select(`id, first_name, last_name, email, company, role, created_at, updated_at, status, subscribed_modules`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -38,7 +39,7 @@ export async function GET(req) {
   }
 }
 
-// POST - Merged actions for Update Role and Delete User
+// POST - Merged actions for Update Role, Delete User, and Cancel Subscription
 export async function POST(req) {
   try {
     const { action, userId, newRole } = await req.json();
@@ -78,6 +79,22 @@ export async function POST(req) {
       if (authError) throw authError;
 
       return NextResponse.json({ message: "User completely deleted from system." }, { status: 200 });
+    }
+
+    // --- NEW ACTION: CANCEL SUBSCRIPTION ---
+    if (action === 'cancelSubscription') {
+      if (!userId) {
+        return NextResponse.json({ message: "User ID is required." }, { status: 400 });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .update({ subscribed_modules: [], updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select();
+
+      if (error) throw error;
+      return NextResponse.json({ message: "User subscription successfully cancelled.", user: data[0] });
     }
 
     return NextResponse.json({ message: "Invalid action" }, { status: 400 });

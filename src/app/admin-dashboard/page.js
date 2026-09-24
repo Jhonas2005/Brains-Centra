@@ -94,6 +94,21 @@ const ParticleBackground = () => {
   );
 };
 
+// --- NEW: Constants & Formatting Tools ---
+const ALL_MODULES = [
+  { id: "overview", label: "Command Overview", shortName: "HOME", icon: "🌐" },
+  { id: "hms", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨", price: 8500 },
+  { id: "pms", label: "Landlord (PMS)", shortName: "PMS", icon: "🏢", price: 11500 },
+  { id: "hvms", label: "Butler (HVMS)", shortName: "HVMS", icon: "📋", price: 5500 },
+  { id: "bms", label: "Sekyu (BMS)", shortName: "BMS", icon: "🏗️", price: 14500 },
+  { id: "iot", label: "Housekeeper (IoT)", shortName: "IoT", icon: "📡", price: 17000 },
+  { id: "subscription", label: "Subscription", shortName: "SUBS", icon: "💳" }
+];
+
+const formatPHP = (amount) => {
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+};
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,18 +116,24 @@ export default function AdminDashboard() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   const [userToDelete, setUserToDelete] = useState(null); 
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState(null);
   
+  // --- NEW: View Subscription Modal State ---
+  const [viewSubModal, setViewSubModal] = useState(null);
+
   const [activeTab, setActiveTab] = useState('customer');
   const [processingId, setProcessingId] = useState(null);
 
-  // --- NEW: Search & Filter States ---
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // --- NEW: Subscription Filter State ---
+  const [subFilter, setSubFilter] = useState('all'); // 'all', 'subscribed', 'unsubscribed'
 
-  // Reset filters when switching tabs
   useEffect(() => {
     setSearchQuery('');
     setStatusFilter('all');
+    setSubFilter('all');
   }, [activeTab]);
 
   useEffect(() => {
@@ -177,6 +198,29 @@ export default function AdminDashboard() {
     }
   };
 
+  const confirmAndCancelSubscription = async () => {
+    if (!subscriptionToCancel) return;
+
+    try {
+      setProcessingId(subscriptionToCancel.id);
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancelSubscription', userId: subscriptionToCancel.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      setSubscriptionToCancel(null); 
+      fetchUsers(); 
+    } catch (err) {
+      alert(`Error canceling subscription: ${err.message}`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleTrialAction = async (userId, email, name, action) => {
     try {
       setProcessingId(userId);
@@ -197,6 +241,22 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- NEW: Open Individual Module Subscription View ---
+  const handleViewSubscription = async (user, moduleId) => {
+    const fullMod = ALL_MODULES.find(m => m.id === moduleId);
+    setViewSubModal({ user, module: fullMod, billingInfo: null, loading: true });
+
+    try {
+      const res = await fetch(`/api/user/billing?userId=${user.id}`);
+      if (!res.ok) throw new Error('Failed to load billing history');
+      const data = await res.json();
+      setViewSubModal({ user, module: fullMod, billingInfo: data, loading: false });
+    } catch (err) {
+      console.error(err);
+      setViewSubModal({ user, module: fullMod, billingInfo: null, loading: false, error: true });
+    }
+  };
+
   const getRoleBadgeColor = (role) => {
     return role === 'admin' 
       ? 'bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30' 
@@ -207,13 +267,22 @@ export default function AdminDashboard() {
     window.location.href = "/";
   };
 
-  // --- NEW: Advanced Search & Filter Logic ---
+  // --- CHANGED: Added `subFilter` to dynamic filtering logic ---
   const displayedUsers = users.filter(user => {
     if (user.role !== activeTab) return false;
 
-    if (activeTab === 'customer' && statusFilter !== 'all') {
-      const userStatus = user.status || 'new'; 
-      if (userStatus !== statusFilter) return false;
+    if (activeTab === 'customer') {
+      if (statusFilter !== 'all') {
+        const userStatus = user.status || 'new'; 
+        if (userStatus !== statusFilter) return false;
+      }
+
+      if (subFilter === 'subscribed') {
+        if (!user.subscribed_modules || user.subscribed_modules.length === 0) return false;
+      }
+      if (subFilter === 'unsubscribed') {
+        if (user.subscribed_modules && user.subscribed_modules.length > 0) return false;
+      }
     }
 
     if (searchQuery.trim() !== '') {
@@ -259,6 +328,107 @@ export default function AdminDashboard() {
   return (
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 py-6 md:py-12">
       <ParticleBackground />
+
+      {/* --- NEW: View Subscription Details Modal --- */}
+      {viewSubModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setViewSubModal(null)}></div>
+          <div className="relative w-full max-w-lg bg-[#13172e] border border-fuchsia-500/50 rounded-2xl p-6 md:p-8 z-10 shadow-[0_0_40px_rgba(217,70,239,0.25)] flex flex-col max-h-[90vh]">
+            
+            <div className="flex justify-between items-start mb-6 border-b border-indigo-800/50 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">{viewSubModal.module?.icon}</span> 
+                  {viewSubModal.module?.label}
+                </h3>
+                <p className="text-xs text-indigo-300/80 mt-1">Subscription details for <span className="font-bold text-white">{viewSubModal.user?.first_name} {viewSubModal.user?.last_name}</span></p>
+              </div>
+              <button onClick={() => setViewSubModal(null)} className="text-indigo-400 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-[#090b14]/50 border border-indigo-800/50 rounded-lg p-4">
+                  <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1">Monthly Cost</div>
+                  <div className="text-lg font-bold text-emerald-400">{formatPHP(viewSubModal.module?.price)}</div>
+                </div>
+                <div className="bg-[#090b14]/50 border border-indigo-800/50 rounded-lg p-4">
+                  <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1">Purchase Date</div>
+                  <div className="text-sm font-bold text-indigo-100">{new Date(viewSubModal.user?.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-3">Billing & Invoices</h4>
+              
+              {viewSubModal.loading ? (
+                <div className="text-center py-8 text-indigo-400 animate-pulse text-xs font-mono">Fetching history...</div>
+              ) : viewSubModal.error ? (
+                <div className="text-center py-8 text-red-400 text-xs">Failed to load billing history.</div>
+              ) : viewSubModal.billingInfo?.invoices?.length > 0 ? (
+                <div className="space-y-3">
+                  {viewSubModal.billingInfo.invoices.map(inv => (
+                    <div key={inv.id} className="bg-[#090b14]/40 border border-indigo-800/30 rounded p-3 flex justify-between items-center text-xs">
+                      <div>
+                        <div className="font-bold text-white">{inv.description}</div>
+                        <div className="text-[10px] text-indigo-400">{new Date(inv.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-emerald-400">{formatPHP(inv.amount)}</div>
+                        <div className="text-[10px] text-indigo-300 uppercase">{inv.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-[#090b14]/20 border border-dashed border-indigo-800/30 rounded text-xs text-indigo-400/60">
+                  No invoices recorded for this user.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-indigo-800/50 text-right">
+               <button onClick={() => setViewSubModal(null)} className="bg-[#090b14] border border-indigo-700 hover:border-indigo-500 text-indigo-200 text-xs font-bold py-2 px-6 rounded-lg transition-all">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Cancel Subscription Confirmation Modal --- */}
+      {subscriptionToCancel && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setSubscriptionToCancel(null)}></div>
+          <div className="relative w-full max-w-sm bg-[#13172e] border border-amber-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(245,158,11,0.25)] z-10 text-center">
+            
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-500/20 border border-amber-500/50 mb-6">
+              <span className="text-2xl">💳</span>
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-2">Cancel Subscription</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">
+              Are you sure you want to forcibly cancel all active modules for <strong className="text-white">{subscriptionToCancel.name}</strong>?
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button 
+                onClick={confirmAndCancelSubscription}
+                disabled={processingId === subscriptionToCancel.id}
+                className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              >
+                {processingId === subscriptionToCancel.id ? 'Canceling...' : 'Confirm'}
+              </button>
+              <button 
+                onClick={() => setSubscriptionToCancel(null)}
+                className="flex-1 bg-[#090b14] border border-indigo-700 hover:border-indigo-500 text-indigo-200 font-bold py-2 px-4 rounded-lg transition-all active:scale-95"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- Delete Confirmation Modal --- */}
       {userToDelete && (
@@ -338,7 +508,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Stats Cards - Tab Switchers (Aligned horizontally on mobile) */}
+        {/* Stats Cards - Tab Switchers */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-10">
           <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 flex flex-col justify-center items-center text-center">
             <h3 className="text-[10px] md:text-sm font-bold text-indigo-300 uppercase tracking-wide leading-tight break-words">Total Users</h3>
@@ -381,14 +551,12 @@ export default function AdminDashboard() {
         {/* Dynamic Users Table */}
         <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl shadow-[0_0_40px_rgba(217,70,239,0.15)] overflow-hidden">
           
-          {/* --- NEW: Search & Filter Header Area --- */}
           <div className="px-6 py-4 border-b border-indigo-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#090b14]/50">
             <h3 className="text-lg font-bold text-white whitespace-nowrap">
               {activeTab === 'admin' ? 'Administrator Roster' : 'Customer Roster'}
             </h3>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              {/* Search Bar */}
               <div className="relative w-full sm:w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-indigo-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -404,20 +572,33 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              {/* Status Filter (Only visible for Customers) */}
+              {/* --- CHANGED: Added Subscription Filter --- */}
               {activeTab === 'customer' && (
-                <select 
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 cursor-pointer w-full sm:w-40 transition-all appearance-none"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23818cf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em' }}
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="new">New Account</option>
-                  <option value="pending">Pending Trial</option>
-                  <option value="active">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                <>
+                  <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 cursor-pointer w-full sm:w-36 transition-all appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23818cf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em' }}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="new">New Account</option>
+                    <option value="pending">Pending Trial</option>
+                    <option value="active">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+
+                  <select 
+                    value={subFilter}
+                    onChange={(e) => setSubFilter(e.target.value)}
+                    className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 cursor-pointer w-full sm:w-44 transition-all appearance-none"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23818cf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em' }}
+                  >
+                    <option value="all">All Subscriptions</option>
+                    <option value="subscribed">Subscribed</option>
+                    <option value="unsubscribed">Not Subscribed</option>
+                  </select>
+                </>
               )}
             </div>
           </div>
@@ -432,7 +613,10 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Role</th>
                   
                   {activeTab === 'customer' && (
-                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                    <>
+                      <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Subscription</th>
+                    </>
                   )}
                   
                   <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Joined</th>
@@ -470,17 +654,42 @@ export default function AdminDashboard() {
                     </td>
                     
                     {activeTab === 'customer' && (
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        {user.status === 'pending' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">PENDING TRIAL</span>
-                        ) : user.status === 'active' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">APPROVED</span>
-                        ) : user.status === 'rejected' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">REJECTED</span>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">NEW ACCOUNT</span>
-                        )}
-                      </td>
+                      <>
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          {user.status === 'pending' ? (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">PENDING TRIAL</span>
+                          ) : user.status === 'active' ? (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">APPROVED</span>
+                          ) : user.status === 'rejected' ? (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">REJECTED</span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">NEW ACCOUNT</span>
+                          )}
+                        </td>
+                        
+                        {/* --- CHANGED: Updated Subscription Column to Interactive Module Pills --- */}
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          {user.subscribed_modules && user.subscribed_modules.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5 max-w-[150px]">
+                              {user.subscribed_modules.map(mod => {
+                                const fullMod = ALL_MODULES.find(m => m.id === mod);
+                                return (
+                                  <button 
+                                    key={mod}
+                                    onClick={() => handleViewSubscription(user, mod)}
+                                    className="px-2 py-1 rounded text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 hover:bg-fuchsia-500/40 transition-colors cursor-pointer"
+                                    title={`View ${fullMod?.shortName} Details`}
+                                  >
+                                    {fullMod?.shortName || mod.toUpperCase()}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-indigo-400/50 text-[10px] font-bold italic border border-indigo-800/30 px-3 py-1 rounded-full">NONE</span>
+                          )}
+                        </td>
+                      </>
                     )}
 
                     <td className="px-6 py-5 whitespace-nowrap text-sm text-indigo-300/80">
@@ -517,11 +726,23 @@ export default function AdminDashboard() {
                           <option value="admin">Admin</option>
                         </select>
 
+                        {/* Existing global Cancel Sub Button */}
+                        {activeTab === 'customer' && user.subscribed_modules && user.subscribed_modules.length > 0 && (
+                          <button 
+                            onClick={() => setSubscriptionToCancel({ id: user.id, name: user.first_name })}
+                            disabled={processingId === user.id}
+                            className="bg-[#090b14] hover:bg-amber-900/30 border border-amber-900/50 hover:border-amber-500/50 text-amber-500/80 hover:text-amber-400 text-[10px] font-bold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50"
+                            title="Cancel Active Subscription"
+                          >
+                            CANCEL SUB
+                          </button>
+                        )}
+
                         {/* Delete Button */}
                         <button 
                           onClick={() => setUserToDelete({ id: user.id, name: user.first_name })}
                           disabled={processingId === user.id}
-                          className="bg-[#090b14] hover:bg-red-900/30 border border-red-900/50 hover:border-red-500/50 text-red-500/70 hover:text-red-400 text-xs font-bold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50"
+                          className="bg-[#090b14] hover:bg-red-900/30 border border-red-900/50 hover:border-red-500/50 text-red-500/70 hover:text-red-400 text-[10px] font-bold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50"
                           title="Delete Account"
                         >
                           DELETE

@@ -2,6 +2,7 @@
 
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 
 // --- Sign In & Forgot Password Pop-up Modal Component ---
 const SignInModal = ({ onClose }) => {
@@ -21,25 +22,40 @@ const SignInModal = ({ onClose }) => {
     const password = e.target.password.value;
 
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+      // 1. Authenticate directly on the client to automatically set the browser session
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setMessage("Success! Redirecting...");
-        if (data.role === 'admin') {
-          window.location.href = "/admin-dashboard"; 
-        } else {
-          window.location.href = "/user-dashboard"; 
-        }
-      } else {
-        setMessage(data.message); 
+      if (authError) {
+        setMessage(authError.message);
+        return;
       }
+
+      // 2. Fetch the user's role from your profiles table to know where to route them
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) {
+        setMessage("Error verifying account role.");
+        return;
+      }
+
+      setMessage("Success! Redirecting...");
+      
+      // 3. Route based on role
+      if (profileData.role === 'admin') {
+        window.location.href = "/admin-dashboard"; 
+      } else {
+        window.location.href = "/user-dashboard"; 
+      }
+
     } catch (error) {
+      console.error(error);
       setMessage("Connection error. Please try again.");
     }
   };

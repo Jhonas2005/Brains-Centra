@@ -14,7 +14,7 @@ export async function POST(req) {
 
     if (authError || !authData.user) {
       return NextResponse.json({ 
-        message: "Incorrect email or password." 
+        message: "Account not found. Please check your email or password." 
       }, { status: 401 }); // This triggers the red error text on your frontend
     }
 
@@ -27,7 +27,7 @@ export async function POST(req) {
 
     if (!profile) {
       return NextResponse.json({ 
-        message: "Account not found." 
+        message: "Account not found. Please create an account before requesting a free trial." 
       }, { status: 404 }); // This triggers your Account Not Found modal
     }
 

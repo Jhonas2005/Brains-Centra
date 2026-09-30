@@ -230,7 +230,7 @@ export default function FreeTrial() {
         <div className="text-center mb-8">
           <img src="/brains-logo.png" alt="Brains Logo" className="h-10 w-auto mx-auto mb-6 object-contain" />
           <h1 className="text-3xl font-bold text-white mb-2">Request 14-day free trial</h1>
-          <p className="text-sm text-indigo-300/80">Existing operators can request platform access here.</p>
+          <p className="text-sm text-indigo-300/80">Create an account before requesting. Existing operators can request platform access here.</p>
         </div>
 
         {errorMessage && <p className="text-center text-sm font-semibold text-red-400 mb-4">{errorMessage}</p>}

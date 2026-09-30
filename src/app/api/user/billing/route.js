@@ -11,12 +11,15 @@ export async function GET(req) {
       return NextResponse.json({ message: "User ID is required" }, { status: 400 });
     }
 
-    // 1. Fetch Subscribed Modules from profiles or user_subscriptions table
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscribed_modules')
-      .eq('id', userId)
-      .single();
+    // 1. Fetch Subscribed Modules from user_subscriptions table
+    const { data: subscriptions } = await supabaseAdmin
+      .from('user_subscriptions')
+      .select('module_id, status, created_at')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+
+    // Flatten into an array so the frontend still receives the format it expects
+    const activeModules = subscriptions ? subscriptions.map(sub => sub.module_id) : [];
 
     // 2. Fetch Payment Methods
     const { data: paymentMethods } = await supabaseAdmin
@@ -32,14 +35,14 @@ export async function GET(req) {
       .order('created_at', { ascending: false });
 
     return NextResponse.json({
-      subscribed_modules: profile?.subscribed_modules || [],
+      subscribed_modules: activeModules,
       payment_methods: paymentMethods || [],
       invoices: invoices || []
     }, { status: 200 });
 
   } catch (error) {
     console.error('Billing fetch error:', error);
-    return NextResponse.json({ message: "Internal server error", error: error.message }, { status: 500 });
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -52,13 +55,21 @@ export async function POST(req) {
       return NextResponse.json({ message: "User ID is required" }, { status: 400 });
     }
 
-    // 1. Update subscribed_modules array in public.profiles table
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({ subscribed_modules: newModules, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+    // 1. Insert individual rows into user_subscriptions instead of array update
+    if (newModules && newModules.length > 0) {
+      const subscriptionInserts = newModules.map(moduleId => ({
+        user_id: userId,
+        module_id: moduleId,
+        status: 'active'
+      }));
 
-    if (profileError) throw profileError;
+      // upsert ensures we don't create duplicate active subscriptions for the same module
+      const { error: subError } = await supabaseAdmin
+        .from('user_subscriptions')
+        .upsert(subscriptionInserts, { onConflict: 'user_id, module_id' });
+
+      if (subError) throw subError;
+    }
 
     // 2. If payment details are provided, save the card
     if (paymentDetails) {
@@ -85,6 +96,6 @@ export async function POST(req) {
 
   } catch (error) {
     console.error('Billing update error:', error);
-    return NextResponse.json({ message: "Failed to update subscription", error: error.message }, { status: 500 });
+    return NextResponse.json({ message: "Failed to update subscription" }, { status: 500 });
   }
 }

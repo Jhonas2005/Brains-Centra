@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
+
 // --- Sign In & Forgot Password Pop-up Modal Component ---
 const SignInModal = ({ onClose }) => {
   const [view, setView] = useState("login"); // "login" or "forgot"
@@ -155,6 +156,43 @@ const SignInModal = ({ onClose }) => {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+};
+
+// --- Demo Video Pop-up Modal Component ---
+const VideoModal = ({ onClose }) => {
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#090b14]/90 backdrop-blur-sm cursor-pointer" onClick={onClose}></div>
+
+      <div className="relative w-full max-w-4xl z-10">
+        <button onClick={onClose} className="absolute -top-10 right-0 text-indigo-300 hover:text-fuchsia-400 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div className="aspect-video w-full rounded-2xl overflow-hidden border border-indigo-800/50 shadow-[0_0_40px_rgba(217,70,239,0.25)] bg-black">
+          <video
+            className="w-full h-full"
+            src="brains-demo.mp4"
+            controls
+            autoPlay
+            playsInline
+          />
+        </div>
       </div>
     </div>
   );
@@ -479,6 +517,7 @@ const ModuleSection = ({ data }) => (
 export default function CentralCommand() {
   const [activeSection, setActiveSection] = useState("platform");
   const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -510,6 +549,7 @@ export default function CentralCommand() {
       <ParticleBackground />
 
       {isSignInOpen && <SignInModal onClose={() => setIsSignInOpen(false)} />}
+      {isVideoOpen && <VideoModal onClose={() => setIsVideoOpen(false)} />}
 
       {/* CHANGED: Expanded padding to px-8 lg:px-12 */}
       <nav className="flex items-center justify-between px-8 lg:px-12 py-4 border-b border-indigo-900/50 bg-[#090b14]/70 backdrop-blur-md sticky top-0 z-50">
@@ -573,7 +613,9 @@ export default function CentralCommand() {
             <button className="bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold text-lg py-4 px-10 rounded-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(217,70,239,0.5)] active:scale-95 w-full sm:w-auto">
               Explore Platform
             </button>
-            <button className="border-2 border-indigo-700 bg-[#13172e]/80 backdrop-blur-sm hover:border-fuchsia-500 hover:bg-[#1a1f3c]/80 text-indigo-100 font-bold text-lg py-4 px-10 rounded-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(99,102,241,0.2)] active:scale-95 w-full sm:w-auto">
+            <button 
+            onClick={() => setIsVideoOpen(true)}
+            className="border-2 border-indigo-700 bg-[#13172e]/80 backdrop-blur-sm hover:border-fuchsia-500 hover:bg-[#1a1f3c]/80 text-indigo-100 font-bold text-lg py-4 px-10 rounded-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(99,102,241,0.2)] active:scale-95 w-full sm:w-auto">
               Watch Demo
             </button>
           </div>

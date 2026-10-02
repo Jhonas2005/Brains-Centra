@@ -49,13 +49,43 @@ export async function GET(req) {
 // POST: Handle module upgrades and record invoices/payments
 export async function POST(req) {
   try {
-    const { userId, newModules, paymentDetails, amountCharged, description } = await req.json();
+    const body = await req.json();
+    const { action, userId, moduleToCancel, newModules, paymentDetails, amountCharged, description } = body;
 
     if (!userId) {
       return NextResponse.json({ message: "User ID is required" }, { status: 400 });
     }
 
-    // 1. Insert individual rows into user_subscriptions instead of array update
+    // ==========================================
+    // 1. HANDLE CANCELLATION
+    // ==========================================
+    if (action === 'cancel') {
+      if (moduleToCancel === 'all') {
+        // Mark all active subscriptions as canceled
+        const { error } = await supabaseAdmin
+          .from('user_subscriptions')
+          .update({ status: 'canceled' })
+          .eq('user_id', userId)
+          .eq('status', 'active');
+
+        if (error) throw error;
+      } else {
+        // Mark the specific module as canceled
+        const { error } = await supabaseAdmin
+          .from('user_subscriptions')
+          .update({ status: 'canceled' })
+          .eq('user_id', userId)
+          .eq('module_id', moduleToCancel);
+
+        if (error) throw error;
+      }
+
+      return NextResponse.json({ message: "Subscription canceled successfully" }, { status: 200 });
+    }
+
+    // ==========================================
+    // 2. HANDLE UPGRADE / PURCHASE
+    // ==========================================
     if (newModules && newModules.length > 0) {
       const subscriptionInserts = newModules.map(moduleId => ({
         user_id: userId,
@@ -63,7 +93,6 @@ export async function POST(req) {
         status: 'active'
       }));
 
-      // upsert ensures we don't create duplicate active subscriptions for the same module
       const { error: subError } = await supabaseAdmin
         .from('user_subscriptions')
         .upsert(subscriptionInserts, { onConflict: 'user_id, module_id' });
@@ -71,7 +100,6 @@ export async function POST(req) {
       if (subError) throw subError;
     }
 
-    // 2. If payment details are provided, save the card
     if (paymentDetails) {
       await supabaseAdmin.from('payment_methods').insert({
         user_id: userId,
@@ -82,11 +110,11 @@ export async function POST(req) {
       });
     }
 
-    // 3. Record an invoice for the purchase
     if (amountCharged) {
       await supabaseAdmin.from('invoices').insert({
         user_id: userId,
         amount: amountCharged,
+        currency: 'PHP',
         description: description || 'Module Purchase / Subscription Upgrade',
         status: 'paid'
       });
@@ -96,6 +124,6 @@ export async function POST(req) {
 
   } catch (error) {
     console.error('Billing update error:', error);
-    return NextResponse.json({ message: "Failed to update subscription" }, { status: 500 });
+    return NextResponse.json({ message: "Failed to update subscription", error: error.message }, { status: 500 });
   }
 }

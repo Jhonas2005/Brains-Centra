@@ -95,19 +95,128 @@ const ParticleBackground = () => {
   );
 };
 
-// --- Module Prices in PHP ---
+// --- EXPANDED MODULES & ECOSYSTEM DATA ---
 const ALL_MODULES = [
-  { id: "overview", label: "Command Overview", shortName: "HOME", icon: "🌐" },
-  { id: "hms", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨", price: 8500 },
-  { id: "pms", label: "Landlord (PMS)", shortName: "PMS", icon: "🏢", price: 11500 },
-  { id: "hvms", label: "Butler (HVMS)", shortName: "HVMS", icon: "📋", price: 5500 },
-  { id: "bms", label: "Sekyu (BMS)", shortName: "BMS", icon: "🏗️", price: 14500 },
-  { id: "iot", label: "Housekeeper (IoT)", shortName: "IoT", icon: "📡", price: 17000 },
-  { id: "subscription", label: "Subscription", shortName: "SUBS", icon: "💳" }
+  { id: "overview", category: "Dashboard", label: "Command Overview", shortName: "HOME", icon: "🌐" },
+  
+  // Core Facilities
+  { id: "hms", category: "Core Facilities", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨", price: 8500 },
+  { id: "pms", category: "Core Facilities", label: "Landlord (PMS)", shortName: "PMS", icon: "🏢", price: 11500 },
+  { id: "hvms", category: "Core Facilities", label: "Butler (HVMS)", shortName: "HVMS", icon: "📋", price: 5500 },
+  { id: "bms", category: "Core Facilities", label: "Sekyu (BMS)", shortName: "BMS", icon: "🏗️", price: 14500 },
+  { id: "iot", category: "Core Facilities", label: "Housekeeper (IoT)", shortName: "IoT", icon: "📡", price: 17000 },
+  
+  // Connector Systems
+  { id: "hr", category: "Connector Systems", label: "Human Resources", shortName: "HR", icon: "👥", price: 6500 },
+  { id: "ais", category: "Connector Systems", label: "Accounting Info", shortName: "AIS", icon: "📊", price: 9500 },
+  { id: "crm", category: "Connector Systems", label: "Customer Relations", shortName: "CRM", icon: "🤝", price: 7500 },
+  { id: "mis", category: "Connector Systems", label: "Management Info", shortName: "MIS", icon: "📈", price: 8000 },
+  { id: "pos", category: "Connector Systems", label: "Point of Sale", shortName: "POS", icon: "🛒", price: 4500 },
+  { id: "ims", category: "Connector Systems", label: "Inventory Mgt", shortName: "IMS", icon: "📦", price: 6000 },
+  { id: "ewallet", category: "Connector Systems", label: "E-Wallets", shortName: "PAY", icon: "💳", price: 5000 },
+  { id: "parcel", category: "Connector Systems", label: "Parcel Tracking", shortName: "TRACK", icon: "🚚", price: 3500 },
+  { id: "fleet", category: "Connector Systems", label: "Fleet Management", shortName: "FLEET", icon: "🚛", price: 12000 },
+  { id: "pms_proj", category: "Connector Systems", label: "Project Mgt", shortName: "PROJ", icon: "📋", price: 5500 },
+
+  // Ecosystem (Always Accessible)
+  { id: "services", category: "Brains Ecosystem", label: "Agency Services", shortName: "AGENCY", icon: "💼" },
+  { id: "hardware", category: "Brains Ecosystem", label: "Hardware Catalog", shortName: "HARDWARE", icon: "💻" },
+  { id: "brands", category: "Brains Ecosystem", label: "Our Brands", shortName: "BRANDS", icon: "🛍️" },
+
+  // Settings
+  { id: "subscription", category: "Settings", label: "Billing & Subscription", shortName: "SUBS", icon: "💳" }
+];
+
+const agencyServices = [
+  { id: "branding", image: "/services/branding.jpg", title: "Branding & Design", desc: "Logo creation, moodboards, custom illustrations, and full brand strategy.", color: "from-pink-500 to-rose-500", glow: "group-hover:shadow-[0_0_30px_rgba(244,63,94,0.3)] border-pink-900/30" },
+  { id: "marketing", image: "/services/marketing.jpg", title: "Marketing & Sales", desc: "Omnichannel campaigns, social media management, and CRM automation.", color: "from-amber-500 to-orange-500", glow: "group-hover:shadow-[0_0_30px_rgba(245,158,11,0.3)] border-amber-900/30" },
+  { id: "bizdev", image: "/services/business-dev.jpg", title: "Business Development", desc: "Connecting your business to the right people, clients, and partners globally.", color: "from-emerald-500 to-teal-500", glow: "group-hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] border-emerald-900/30" },
+  { id: "webdev", image: "/services/web-dev.jpg", title: "Custom Web & App Dev", desc: "Bespoke mobile applications and website layouts with UI/UX optimization.", color: "from-blue-500 to-cyan-500", glow: "group-hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] border-blue-900/30" },
+  { id: "integration", image: "/services/integration.jpg", title: "Systems Integration", desc: "Interlink networks and create safe, reliable systems with comprehensive maintenance.", color: "from-violet-500 to-purple-500", glow: "group-hover:shadow-[0_0_30px_rgba(139,92,246,0.3)] border-violet-900/30" },
+  { id: "staff", image: "/services/resource-staff.jpg", title: "Resource Augmentation", desc: "Providing highly skilled talent and customer service support teams.", color: "from-fuchsia-500 to-pink-500", glow: "group-hover:shadow-[0_0_30px_rgba(217,70,239,0.3)] border-fuchsia-900/30" },
+];
+
+const subsidiaryBrands = [
+  { name: "ASAP!", image: "/logos/asap-logo.png", icon: "🚀", desc: "All Services App for fast, professional blue and white-collar booking." },
+  { name: "KlassMall", image: "/logos/klassmall-logo.png", icon: "🛒", desc: "B2B and B2C wholesale retail platform connecting direct to manufacturers." },
+  { name: "Luxurious Cleaning Co.", image: "/logos/luxurious-logo.png", icon: "✨", desc: "Top-tier general, deep, and post-construction cleaning services." },
+  { name: "The Soap Republic", image: "/logos/soap-republic-logo.png", icon: "🧼", desc: "High-quality, eco-friendly household and industrial cleaning products." },
+  { name: "The Beauty Alley", image: "/logos/beauty-alley-logo.png", icon: "💆‍♀️", desc: "Luxurious wellness and health home services, including IV drips." },
+  { name: "Green Oasis", image: "/logos/green-oasis-logo.png", icon: "🌿", desc: "Landscape design, interior biophilic installations, and garden maintenance." },
+  { name: "The Finest Fit", image: "/logos/finest-fit-logo.png", icon: "👕", desc: "High-quality customized uniforms, corporate apparel, and printing." },
+  { name: "Portress", image: "/logos/portress-logo.png", icon: "🚢", desc: "B2B supply chain and logistics solutions powered by Klassic Marketing." },
+];
+
+const hardwareProducts = [
+  "Construction Auxiliaries", "Command Center", "GPS Tracker", "Accessories", "Auto Identification and Data Capture",
+  "Cloud Solutions", "Copiers", "Data Centers", "Desktops", "Digital Appliance", "Hyperconverge", "IT Security",
+  "LFD", "Mobile Devices", "Networking", "Notebooks", "Peripherals", "Photography", "Printers", "Server Appliance",
+  "Servers", "Software", "Storage", "Surveillance", "Unified Communication and Collaboration", 
+  "VDI- Virtual Desktop Infrastructure", "Wearables", "Open-source Platform", "3D Printing", "Artificial Intelligence-RPA",
+  "Big Data", "CAD & Graphics", "Collaboration Solutions", "Commercial Digital Display", "Containers & Microservices",
+  "Data Management Solutions", "Dev Ops", "eMobility", "Gadgets & Accessories", "Gaming Accessories", "Gaming Notebooks",
+  "Gaming Desktops", "Hyper-Converged Infrastructure", "IP Surveillance and Security", "Security", "Lifestyle IoT",
+  "Mobility-Smartphones", "Mobility-Tablets", "Networking Wired and Wireless", "Network Security", "POS Solutions and AIDC",
+  "Power Management", "Software Defined Network", "Software Enterprise Solutions", "Document Imaging", "Workstations"
 ];
 
 const formatPHP = (amount) => {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+};
+
+// --- GENERIC INQUIRY MODAL ---
+const InquiryModal = ({ subject, type, onClose }) => {
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSubmitted(true);
+    setTimeout(() => onClose(), 2500);
+  };
+
+  const accentColor = type === 'Hardware' ? 'cyan' : 'blue';
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={onClose}></div>
+      <div className={`relative w-full max-w-md bg-[#13172e] border border-${accentColor}-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(59,130,246,0.15)] z-10 transition-all duration-300`}>
+        <button onClick={onClose} className={`absolute top-4 right-4 text-indigo-400 hover:text-${accentColor}-400 transition-colors`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        
+        {submitted ? (
+          <div className="text-center py-8 animate-fadeIn">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 border border-emerald-500/50 text-emerald-400 text-3xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">✓</div>
+            <h3 className="text-xl font-bold text-white mb-2">Inquiry Sent!</h3>
+            <p className="text-sm text-indigo-200">Our {type === 'Hardware' ? 'procurement' : 'agency'} team will contact you shortly regarding your request for {subject}.</p>
+          </div>
+        ) : (
+          <div className="animate-fadeIn">
+            <h3 className="text-2xl font-bold text-white mb-2">Request {type}</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">Inquire about <span className={`text-${accentColor}-400 font-bold`}>{subject}</span>.</p>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
+                <input type="text" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="John Doe" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Email</label>
+                <input type="email" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="john@company.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Additional Details</label>
+                <textarea rows="3" className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="Tell us more about your needs..."></textarea>
+              </div>
+              <button type="submit" className={`w-full bg-gradient-to-r from-${accentColor}-600 to-indigo-600 hover:from-${accentColor}-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all`}>
+                Submit Inquiry
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default function UserDashboard() {
@@ -129,18 +238,22 @@ export default function UserDashboard() {
   const [cancelProcessing, setCancelProcessing] = useState(false);
 
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-
-  // --- NEW STATE: Controls the display of the printable receipt ---
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  
+  // Ecosystem Inquiry Modal
+  const [inquiryModal, setInquiryModal] = useState({ isOpen: false, subject: "", type: "" });
 
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
   };
 
+  const openInquiryModal = (subject, type) => {
+    setInquiryModal({ isOpen: true, subject, type });
+  };
+
   const fetchMyProfileAndBilling = async () => {
     try {
       setLoading(true);
-
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
       if (authError || !authData?.user) {
@@ -149,7 +262,6 @@ export default function UserDashboard() {
       }
 
       const realUserId = authData.user.id;
-
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -244,50 +356,48 @@ export default function UserDashboard() {
   };
 
   const handleCancelSubmit = async () => {
-  if (!moduleToCancel) return;
-  setCancelProcessing(true);
+    if (!moduleToCancel) return;
+    setCancelProcessing(true);
 
-  try {
-    const res = await fetch('/api/user/billing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        action: 'cancel',
-        userId: userData.id, 
-        moduleToCancel: moduleToCancel // e.g., 'hms' or 'all'
-      })
-    });
+    try {
+      const res = await fetch('/api/user/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'cancel',
+          userId: userData.id, 
+          moduleToCancel: moduleToCancel 
+        })
+      });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to update subscription");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to update subscription");
 
-    // Update local state
-    const updatedModules = moduleToCancel === 'all' 
-      ? [] 
-      : userData.subscribed_modules.filter(id => id !== moduleToCancel);
+      const updatedModules = moduleToCancel === 'all' 
+        ? [] 
+        : userData.subscribed_modules.filter(id => id !== moduleToCancel);
 
-    setUserData(prev => ({ ...prev, subscribed_modules: updatedModules }));
-    showNotification("Subscription canceled successfully.", "success");
+      setUserData(prev => ({ ...prev, subscribed_modules: updatedModules }));
+      showNotification("Subscription canceled successfully.", "success");
 
-    if (moduleToCancel === 'all' || activeModule === moduleToCancel) {
-      setActiveModule("overview");
+      if (moduleToCancel === 'all' || activeModule === moduleToCancel) {
+        setActiveModule("overview");
+      }
+
+      setShowCancelModal(false);
+      setModuleToCancel(null);
+      fetchMyProfileAndBilling();
+
+    } catch (error) {
+      console.error(error);
+      showNotification(error.message || "An error occurred while processing your cancellation.", "error");
+    } finally {
+      setCancelProcessing(false);
     }
-
-    setShowCancelModal(false);
-    setModuleToCancel(null);
-    fetchMyProfileAndBilling();
-
-  } catch (error) {
-    console.error(error);
-    showNotification(error.message || "An error occurred while processing your cancellation.", "error");
-  } finally {
-    setCancelProcessing(false);
-  }
-};
-
+  };
 
   const availableModulesToBuy = ALL_MODULES.filter(m => 
-    !['overview', 'subscription'].includes(m.id) && 
+    !['overview', 'subscription', 'services', 'brands', 'hardware'].includes(m.id) && 
     !userData?.subscribed_modules?.includes(m.id)
   );
 
@@ -295,6 +405,9 @@ export default function UserDashboard() {
     const modObj = ALL_MODULES.find(m => m.id === modId);
     return sum + (modObj?.price || 0);
   }, 0);
+
+  // Group modules for the sidebar
+  const categories = [...new Set(ALL_MODULES.map(m => m.category))];
 
   if (loading) {
     return (
@@ -311,41 +424,44 @@ export default function UserDashboard() {
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 py-6 md:py-8">
       <ParticleBackground />
 
-      {/* --- NEW: Printable Receipt Modal --- */}
+      <style>{`
+        .connector-scrollbar::-webkit-scrollbar { display: none; }
+        .connector-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-50% - 1rem)); } }
+        @keyframes scroll-right { 0% { transform: translateX(calc(-50% - 1rem)); } 100% { transform: translateX(0); } }
+        .animate-scroll-left { animation: scroll-left 60s linear infinite; width: max-content; }
+        .animate-scroll-right { animation: scroll-right 60s linear infinite; width: max-content; }
+        .hover-pause:hover { animation-play-state: paused; }
+        .fade-edges { mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); }
+      `}</style>
+
+      {/* Inquiry Modal */}
+      {inquiryModal.isOpen && (
+        <InquiryModal 
+          subject={inquiryModal.subject} 
+          type={inquiryModal.type} 
+          onClose={() => setInquiryModal({ isOpen: false, subject: "", type: "" })} 
+        />
+      )}
+
+      {/* Printable Receipt Modal */}
       {selectedReceipt && (
         <>
-          {/* This style block ensures ONLY the receipt prints when they hit Ctrl+P */}
           <style>{`
             @media print {
               body * { visibility: hidden; }
               #receipt-modal, #receipt-modal * { visibility: visible; }
-              #receipt-modal {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                margin: 0;
-                padding: 40px;
-                box-shadow: none !important;
-                background: white !important;
-                color: black !important;
-              }
+              #receipt-modal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 40px; box-shadow: none !important; background: white !important; color: black !important; }
               .print-hide { display: none !important; }
             }
           `}</style>
-
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-[#090b14]/90 backdrop-blur-sm print-hide" onClick={() => setSelectedReceipt(null)}></div>
-            
             <div id="receipt-modal" className="relative w-full max-w-lg bg-white text-gray-900 rounded-2xl p-8 z-10 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-              
-              {/* Receipt Header */}
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-black text-indigo-950 tracking-tight">BRAINS CENTRAL COMMAND</h2>
                 <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-1">Official Receipt</p>
               </div>
-
-              {/* Receipt Meta Data */}
               <div className="flex justify-between text-sm mb-8">
                 <div>
                   <p className="text-gray-500 text-xs uppercase font-bold mb-1">Billed To</p>
@@ -360,8 +476,6 @@ export default function UserDashboard() {
                   <p><span className="font-semibold text-gray-600">Time:</span> {new Date(selectedReceipt.created_at).toLocaleTimeString()}</p>
                 </div>
               </div>
-
-              {/* Line Items */}
               <div className="border-t-2 border-b-2 border-gray-100 py-4 mb-6">
                 <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
                   <span>Description</span>
@@ -372,33 +486,21 @@ export default function UserDashboard() {
                   <span>{formatPHP(selectedReceipt.amount)}</span>
                 </div>
               </div>
-
-              {/* Totals */}
               <div className="flex justify-between items-center mb-8">
                 <span className="text-lg font-bold text-gray-800">Total Paid</span>
                 <span className="text-2xl font-black text-indigo-900">{formatPHP(selectedReceipt.amount)}</span>
               </div>
-
-              {/* Footer */}
               <div className="text-center text-xs text-gray-500 mb-8">
                 <p className="font-bold mb-1">Status: <span className="text-emerald-600">{selectedReceipt.status.toUpperCase()}</span></p>
                 <p>Thank you for subscribing to Brains Central Command.</p>
                 <p>Keep this receipt for your records.</p>
               </div>
-
-              {/* Action Buttons (Hidden when printing) */}
               <div className="flex gap-4 print-hide">
-                <button 
-                  onClick={() => window.print()} 
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <button onClick={() => window.print()} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                   Print / Save PDF
                 </button>
-                <button 
-                  onClick={() => setSelectedReceipt(null)} 
-                  className="flex-1 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors"
-                >
+                <button onClick={() => setSelectedReceipt(null)} className="flex-1 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
                   Close
                 </button>
               </div>
@@ -406,7 +508,6 @@ export default function UserDashboard() {
           </div>
         </>
       )}
-      {/* --- END OF NEW COMPONENT --- */}
 
       {/* Notification Modal */}
       {notification.show && (
@@ -443,7 +544,7 @@ export default function UserDashboard() {
             <h3 className="text-xl font-bold text-white mb-2">Upgrade Subscription</h3>
             <p className="text-sm text-indigo-300/80 mb-6">Select additional modules to add to your Command Center.</p>
 
-            <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-2">
+            <div className="space-y-3 mb-6 max-h-48 overflow-y-auto connector-scrollbar pr-2">
               {availableModulesToBuy.length > 0 ? (
                 availableModulesToBuy.map(module => (
                   <label key={module.id} className="flex items-center justify-between p-3 rounded-lg border border-indigo-800/50 bg-[#090b14]/50 cursor-pointer hover:border-fuchsia-500/50 transition-colors">
@@ -516,38 +617,50 @@ export default function UserDashboard() {
         <button onClick={() => setShowLogoutConfirm(true)} className="px-4 md:px-5 py-2 bg-[#13172e]/80 text-indigo-200 text-xs md:text-sm font-semibold rounded-lg border border-indigo-700/50 hover:bg-[#1a1f3c]/80 transition-colors">Sign Out</button>
       </div>
 
-      <div className="relative w-full max-w-[1600px] mx-auto px-2 md:px-4 lg:px-12 z-10 flex flex-row gap-3 md:gap-6 lg:gap-8">
+      <div className="relative w-full max-w-[1600px] mx-auto px-2 md:px-4 lg:px-12 z-10 flex flex-row gap-3 md:gap-6 lg:gap-8 h-[80vh]">
         
         {/* Sidebar */}
-        <div className="w-[70px] sm:w-20 lg:w-72 flex-shrink-0 flex flex-col gap-2 pt-2 md:pt-0">
-          <div className="flex flex-col gap-2 w-full">
-            {ALL_MODULES.map((module) => {
-              const isAlwaysAccessible = module.id === 'overview' || module.id === 'subscription';
-              const isSubscribed = userData?.subscribed_modules?.includes(module.id);
-              const isClickable = isAlwaysAccessible || isSubscribed;
-              const isActive = activeModule === module.id;
+        <div className="w-[70px] sm:w-20 lg:w-72 flex-shrink-0 flex flex-col gap-6 pt-2 md:pt-0 overflow-y-auto connector-scrollbar pb-10">
+          {categories.map((category, catIdx) => {
+            const categoryModules = ALL_MODULES.filter(m => m.category === category);
+            return (
+              <div key={catIdx} className="flex flex-col gap-2 w-full">
+                <div className="hidden lg:block text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest px-4 pb-1 border-b border-indigo-900/50 mb-1">
+                  {category}
+                </div>
+                {categoryModules.map((module) => {
+                  const isAlwaysAccessible = ['overview', 'subscription', 'services', 'brands', 'hardware'].includes(module.id);
+                  const isSubscribed = userData?.subscribed_modules?.includes(module.id);
+                  const isClickable = isAlwaysAccessible || isSubscribed;
+                  const isActive = activeModule === module.id;
 
-              return (
-                <button
-                  key={module.id}
-                  onClick={() => isClickable && setActiveModule(module.id)}
-                  disabled={!isClickable}
-                  className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start w-full px-2 lg:px-4 py-3 rounded-xl transition-all ${
-                    isActive ? 'bg-gradient-to-r from-fuchsia-900/40 to-blue-900/40 border border-fuchsia-500/50 text-white shadow-[0_0_15px_rgba(217,70,239,0.2)]' : isClickable ? 'text-indigo-200 hover:bg-[#13172e]/80' : 'text-indigo-500/40 cursor-not-allowed'
-                  }`}
-                >
-                  <span className="text-xl lg:mr-3 group-hover:scale-110 transition-transform">{module.icon}</span>
-                  <span className="flex-1 text-[9px] lg:text-sm font-semibold text-center lg:text-left">{module.label}</span>
-                </button>
-              );
-            })}
-          </div>
+                  return (
+                    <button
+                      key={module.id}
+                      onClick={() => isClickable && setActiveModule(module.id)}
+                      disabled={!isClickable}
+                      className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start w-full px-2 lg:px-4 py-3 rounded-xl transition-all ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-fuchsia-900/40 to-blue-900/40 border border-fuchsia-500/50 text-white shadow-[0_0_15px_rgba(217,70,239,0.2)]' 
+                          : isClickable 
+                            ? 'text-indigo-200 hover:bg-[#13172e]/80' 
+                            : 'text-indigo-500/40 cursor-not-allowed'
+                      }`}
+                    >
+                      <span className="text-xl lg:mr-3 group-hover:scale-110 transition-transform">{module.icon}</span>
+                      <span className="flex-1 text-[9px] lg:text-sm font-semibold text-center lg:text-left">{module.label}</span>
+                      {!isClickable && <span className="hidden lg:block text-[10px] text-indigo-500/40 border border-indigo-800/30 px-2 py-0.5 rounded ml-2">LOCKED</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          })}
         </div>
 
         {/* Workspace */}
         <div className="flex-grow flex flex-col gap-4 md:gap-6 w-full overflow-hidden min-w-0">
-          
-          <div className="bg-[#13172e]/50 border border-indigo-800/30 rounded-2xl p-4 md:p-8 min-h-[600px] w-full flex flex-col mb-10 shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+          <div className="bg-[#13172e]/50 border border-indigo-800/30 rounded-2xl p-4 md:p-8 w-full flex flex-col h-full overflow-y-auto connector-scrollbar shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
             
             {/* OVERVIEW MODULE */}
             {activeModule === 'overview' && (
@@ -564,40 +677,39 @@ export default function UserDashboard() {
                     <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.1)]">
                       <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
                       <span className="text-[9px] md:text-xs font-bold text-emerald-400 uppercase tracking-widest hidden sm:inline">All Systems Operational</span>
-                      <span className="text-[9px] md:text-xs font-bold text-emerald-400 uppercase tracking-widest sm:hidden">Operational</span>
                     </div>
                     <button 
                       onClick={() => setShowUpgradeModal(true)} 
                       className="bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white text-[10px] md:text-xs font-bold py-1.5 md:py-2 px-4 rounded-full transition-all shadow-[0_0_15px_rgba(217,70,239,0.3)] active:scale-95 whitespace-nowrap"
                     >
-                      + Upgrade
+                      + Upgrade SaaS Modules
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 w-full">
                   <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
-                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">PROPERTIES</div>
-                    <div className="text-xl md:text-3xl text-white font-bold">2</div>
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">ACTIVE MODULES</div>
+                    <div className="text-xl md:text-3xl text-white font-bold">{userData?.subscribed_modules?.length || 0}</div>
                   </div>
                   <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
-                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">LEASES</div>
-                    <div className="text-xl md:text-3xl text-white font-bold">128</div>
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">NETWORK UPTIME</div>
+                    <div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">99.9%</div>
                   </div>
                   <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
                     <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">OPEN ALERTS</div>
                     <div className="text-xl md:text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div>
                   </div>
                   <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-3 md:p-5 shadow-lg">
-                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">NETWORK</div>
-                    <div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">99%</div>
+                    <div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 md:mb-2 tracking-wider truncate">SECURITY RATING</div>
+                    <div className="text-xl md:text-3xl text-blue-400 font-bold drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">A+</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mt-2 w-full flex-grow">
                   <div className="lg:col-span-2 bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-4 md:p-6 flex flex-col h-full shadow-lg">
-                    <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Live Activity Feed</h4>
-                    <div className="flex flex-col gap-4 overflow-y-auto pr-2">
+                    <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Global Activity Feed</h4>
+                    <div className="flex flex-col gap-4 overflow-y-auto pr-2 connector-scrollbar">
                       {[
                         { time: '10:42 AM', event: 'Frontdesk: VIP Guest Checked In (Room 402)', type: 'info', user: 'Auto' },
                         { time: '10:15 AM', event: 'Landlord: New Maintenance Ticket #8821 Created', type: 'warning', user: 'Tenant App' },
@@ -642,7 +754,7 @@ export default function UserDashboard() {
                     </div>
 
                     <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-4 md:p-6 flex-grow shadow-lg">
-                      <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Module Health</h4>
+                      <h4 className="text-xs md:text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Cloud Infrastructure</h4>
                       <div className="space-y-4">
                         <div>
                           <div className="flex justify-between text-[9px] md:text-xs mb-1">
@@ -674,6 +786,158 @@ export default function UserDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* CORE SAAS TEMPLATES (HMS, PMS, HVMS, BMS, IOT) */}
+            {['hms', 'pms', 'hvms', 'bms', 'iot'].includes(activeModule) && (
+              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
+                <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
+                  <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2">
+                    <span className="text-xl md:text-2xl">{ALL_MODULES.find(m => m.id === activeModule)?.icon}</span> 
+                    {ALL_MODULES.find(m => m.id === activeModule)?.label}
+                  </h3>
+                  <button className="bg-[#090b14] border border-indigo-600 text-indigo-200 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-indigo-900/30 transition-colors">Module Settings</button>
+                </div>
+                
+                <div className="flex-grow flex items-center justify-center border-2 border-dashed border-indigo-800/30 rounded-xl bg-[#090b14]/20">
+                  <div className="text-center">
+                    <div className="text-4xl mb-4">{ALL_MODULES.find(m => m.id === activeModule)?.icon}</div>
+                    <h3 className="text-lg font-bold text-white mb-2">{ALL_MODULES.find(m => m.id === activeModule)?.label} Environment Active</h3>
+                    <p className="text-sm text-indigo-400/60 max-w-sm mx-auto">This module is fully integrated into your dashboard. Live data connections and telemetry are operating normally.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* GENERIC CONNECTOR SAAS TEMPLATE */}
+            {['hr', 'ais', 'crm', 'mis', 'pos', 'ims', 'ewallet', 'parcel', 'fleet', 'pms_proj'].includes(activeModule) && (
+              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
+                <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
+                  <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2">
+                    <span className="text-xl md:text-2xl">{ALL_MODULES.find(m => m.id === activeModule)?.icon}</span> 
+                    {ALL_MODULES.find(m => m.id === activeModule)?.label}
+                  </h3>
+                  <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Connector Sync Active</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">SYNC STATUS</div><div className="text-xl text-blue-400 font-bold">100%</div></div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">ACTIVE USERS</div><div className="text-xl text-white font-bold">12</div></div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">DATA PROCESSED</div><div className="text-xl text-white font-bold">4.2GB</div></div>
+                  <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">LAST BACKUP</div><div className="text-xl text-emerald-400 font-bold">Just now</div></div>
+                </div>
+
+                <div className="flex-grow flex items-center justify-center border border-indigo-800/30 rounded-xl bg-[#090b14]/40 mt-2">
+                  <div className="text-center p-8">
+                    <h3 className="text-lg font-bold text-white mb-2">{ALL_MODULES.find(m => m.id === activeModule)?.label} Terminal</h3>
+                    <p className="text-sm text-indigo-400/60 max-w-sm mx-auto mb-6">Database connection securely established. You are currently viewing the authorized tenant workspace for {userData?.company}.</p>
+                    <button className="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-300 font-bold py-2 px-6 rounded-lg transition-all text-xs">Open Main Dashboard</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AGENCY SERVICES TAB */}
+            {activeModule === 'services' && (
+              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
+                <div className="border-b border-indigo-800/50 pb-4">
+                  <h3 className="text-xl font-bold text-white mb-1">Bespoke Agency Services</h3>
+                  <p className="text-xs text-indigo-300/80">Submit a request to our expert teams for customized enterprise solutions.</p>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-4 overflow-y-auto connector-scrollbar pr-2 pb-6">
+                  {agencyServices.map((service, idx) => (
+                    <div key={idx} className={`bg-[#090b14]/60 border ${service.glow.split(' ')[1] || 'border-indigo-800/40'} rounded-xl overflow-hidden transition-all duration-300 flex flex-col group`}>
+                      <div className="w-full h-24 bg-[#090b14] overflow-hidden relative">
+                        <img src={service.image} alt={service.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#090b14] to-transparent"></div>
+                        <div className="absolute bottom-2 left-4 text-2xl drop-shadow-lg">{service.icon}</div>
+                      </div>
+                      <div className="p-4 flex flex-col flex-grow">
+                        <h4 className="text-sm font-bold text-white mb-2">{service.title}</h4>
+                        <p className="text-xs text-indigo-300/80 leading-relaxed mb-4 flex-grow">{service.desc}</p>
+                        <button 
+                          onClick={() => openInquiryModal(service.title, 'Service')}
+                          className={`w-full bg-gradient-to-r ${service.color} opacity-80 hover:opacity-100 text-white text-xs font-bold py-2 rounded transition-all active:scale-95`}
+                        >
+                          Avail Service
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* HARDWARE CATALOG TAB */}
+            {activeModule === 'hardware' && (
+              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
+                <div className="border-b border-indigo-800/50 pb-4 flex justify-between items-end">
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-1">Hardware Procurement</h3>
+                    <p className="text-xs text-indigo-300/80">Request quotes for enterprise IT infrastructure and flagship products.</p>
+                  </div>
+                  <button 
+                    onClick={() => openInquiryModal('General Hardware Procurement', 'Hardware')}
+                    className="bg-cyan-600/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-cyan-600/40 transition-colors"
+                  >
+                    Request Quote
+                  </button>
+                </div>
+                
+                <div className="grid lg:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-[#090b14]/60 border border-cyan-800/50 rounded-xl p-4 flex flex-col">
+                    <h4 className="text-sm font-bold text-white mb-2">Millennium Interactive Board</h4>
+                    <p className="text-xs text-indigo-200/80 mb-4">4K Ultra HD touch panel with embedded OS and telepresence camera.</p>
+                    <button onClick={() => openInquiryModal('Millennium Interactive Board', 'Hardware')} className="mt-auto text-xs font-bold text-cyan-400 hover:text-white text-left transition-colors">Inquire →</button>
+                  </div>
+                  <div className="bg-[#090b14]/60 border border-emerald-800/50 rounded-xl p-4 flex flex-col">
+                    <h4 className="text-sm font-bold text-white mb-2">THEHCO Tech Device</h4>
+                    <p className="text-xs text-indigo-200/80 mb-4">Heat exchanger for internal combustion engines. Reduces emissions up to 90%.</p>
+                    <button onClick={() => openInquiryModal('THEHCO Tech Device', 'Hardware')} className="mt-auto text-xs font-bold text-emerald-400 hover:text-white text-left transition-colors">Inquire →</button>
+                  </div>
+                </div>
+
+                <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 flex-grow overflow-y-auto connector-scrollbar">
+                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4">Full Hardware Catalog</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {hardwareProducts.map((prod, idx) => (
+                      <span key={idx} onClick={() => openInquiryModal(prod, 'Hardware')} className="bg-[#13172e] border border-indigo-700/50 text-indigo-300 hover:text-white hover:border-cyan-500/50 text-[10px] px-3 py-1.5 rounded-full cursor-pointer transition-colors">
+                        {prod}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUBSIDIARY BRANDS TAB */}
+            {activeModule === 'brands' && (
+              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
+                <div className="border-b border-indigo-800/50 pb-4">
+                  <h3 className="text-xl font-bold text-white mb-1">Our Brands Network</h3>
+                  <p className="text-xs text-indigo-300/80">Connect with the wider Brains B2B and B2C marketplace ecosystem.</p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto connector-scrollbar pr-2 pb-6">
+                  {subsidiaryBrands.map((brand, idx) => (
+                    <div key={idx} className="bg-[#090b14]/60 border border-fuchsia-900/30 rounded-xl p-4 hover:border-fuchsia-500/50 transition-all shadow-md text-center flex flex-col items-center cursor-pointer group">
+                      {brand.image ? (
+                        <div className="h-10 flex items-center justify-center mb-3">
+                          <img src={brand.image} alt={brand.name} className="max-h-full max-w-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300" />
+                        </div>
+                      ) : (
+                        <div className="text-2xl mb-2">{brand.icon}</div>
+                      )}
+                      <h4 className="text-xs font-bold text-white mb-1">{brand.name}</h4>
+                      <p className="text-[9px] text-indigo-300/60 leading-tight">{brand.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -723,15 +987,13 @@ export default function UserDashboard() {
                 <div className="bg-[#13172e]/40 border border-indigo-800/30 rounded-xl p-5 shadow-lg mt-2 flex-grow">
                   <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4">Billing History & Invoices</h4>
                   {billingData.invoices?.length > 0 ? (
-                    <div className="space-y-2 overflow-y-auto max-h-48 pr-2">
+                    <div className="space-y-2 overflow-y-auto max-h-48 pr-2 connector-scrollbar">
                       {billingData.invoices.map((inv) => (
                         <div key={inv.id} className="flex justify-between items-center p-3 bg-[#090b14]/40 border border-indigo-900/50 rounded-lg text-xs hover:bg-[#090b14]/60 transition-colors">
                           <div>
                             <span className="text-white font-bold block mb-1">{inv.description}</span>
                             <span className="text-[10px] text-indigo-400 font-mono">{new Date(inv.created_at).toLocaleDateString()} • INV-{inv.id.substring(0,6).toUpperCase()}</span>
                           </div>
-                          
-                          {/* --- CHANGED: Added Receipt Print Button Next to Invoice Details --- */}
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <span className="text-emerald-400 font-bold block mb-1">{formatPHP(inv.amount)}</span>
@@ -744,336 +1006,11 @@ export default function UserDashboard() {
                               🧾 Print
                             </button>
                           </div>
-                          {/* --- END OF CHANGE --- */}
-
                         </div>
                       ))}
                     </div>
                   ) : <p className="text-xs text-indigo-400/60 text-center py-8 border border-dashed border-indigo-800/30 rounded-lg bg-[#090b14]/20">No billing records found in database.</p>}
                 </div>
-              </div>
-            )}
-
-            {/* HMS MODULE */}
-            {activeModule === 'hms' && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                 <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><span className="text-xl md:text-2xl">🏨</span> Frontdesk (HMS)</h3>
-                    <button className="bg-[#090b14] border border-indigo-600 text-indigo-200 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-indigo-900/30 transition-colors">+ New Booking</button>
-                 </div>
-                 
-                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">OCCUPANCY</div><div className="text-xl md:text-3xl text-white font-bold">82%</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">ARRIVALS TODAY</div><div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">14</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg col-span-2 md:col-span-1"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">PENDING CHECK-INS</div><div className="text-xl md:text-3xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">3</div></div>
-                 </div>
-
-                 <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl overflow-hidden shadow-lg mt-2 flex-grow flex flex-col">
-                    <div className="bg-[#13172e]/80 px-4 py-3 border-b border-indigo-800/50">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Active Frontdesk Roster</h4>
-                    </div>
-                    <div className="overflow-x-auto flex-grow">
-                       <table className="w-full text-left text-xs">
-                          <thead className="bg-[#090b14]/80 text-indigo-400/80">
-                             <tr>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Guest Name</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Room</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Dates</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Status</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-right">Action</th>
-                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-indigo-800/30 text-indigo-200">
-                             <tr className="hover:bg-indigo-900/20 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">Alexander Wright</td>
-                                <td className="px-4 py-3 font-mono">402 (Suite)</td>
-                                <td className="px-4 py-3">Oct 12 - Oct 15</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[9px] font-bold tracking-wider">CHECKED IN</span></td>
-                                <td className="px-4 py-3 text-right"><button className="text-indigo-400 hover:text-white transition-colors">Manage →</button></td>
-                             </tr>
-                             <tr className="hover:bg-indigo-900/20 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">Sarah Jenkins</td>
-                                <td className="px-4 py-3 font-mono">214 (Standard)</td>
-                                <td className="px-4 py-3">Oct 12 - Oct 14</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full text-[9px] font-bold tracking-wider">PENDING ARRIVAL</span></td>
-                                <td className="px-4 py-3 text-right"><button className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-[10px] font-bold transition-colors shadow-lg">Check-in</button></td>
-                             </tr>
-                             <tr className="hover:bg-indigo-900/20 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">Marcus Chen</td>
-                                <td className="px-4 py-3 font-mono">305 (Deluxe)</td>
-                                <td className="px-4 py-3">Oct 10 - Oct 12</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-[9px] font-bold tracking-wider">DUE OUT</span></td>
-                                <td className="px-4 py-3 text-right"><button className="bg-fuchsia-600/20 border border-fuchsia-500/50 hover:bg-fuchsia-600/40 text-fuchsia-300 px-3 py-1 rounded text-[10px] font-bold transition-colors">Check-out</button></td>
-                             </tr>
-                          </tbody>
-                       </table>
-                    </div>
-                 </div>
-              </div>
-            )}
-
-            {/* PMS MODULE */}
-            {activeModule === 'pms' && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                 <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><span className="text-xl md:text-2xl">🏢</span> Landlord (PMS)</h3>
-                    <button className="bg-gradient-to-r from-fuchsia-600 to-blue-600 text-white text-xs font-bold py-1.5 px-4 rounded-lg shadow-[0_0_15px_rgba(217,70,239,0.3)] hover:scale-105 transition-transform">+ Add Tenant</button>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">ACTIVE LEASES</div><div className="text-xl md:text-3xl text-white font-bold">128</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">RENT COLLECTION</div><div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">94%</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg col-span-2 md:col-span-1"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">OPEN WORK ORDERS</div><div className="text-xl md:text-3xl text-fuchsia-400 font-bold drop-shadow-[0_0_8px_rgba(217,70,239,0.5)]">7</div></div>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow mt-2">
-                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 shadow-lg flex flex-col">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Recent Work Orders</h4>
-                       <div className="space-y-3 overflow-y-auto pr-2">
-                          <div className="p-3 bg-[#13172e]/60 border border-red-500/30 rounded-lg flex justify-between items-start">
-                             <div>
-                                <span className="text-white font-bold text-xs block">Unit 4B - Major Plumbing Leak</span>
-                                <span className="text-[10px] text-indigo-400">Reported by: Tenant App • 2 hrs ago</span>
-                             </div>
-                             <span className="px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[9px] font-bold uppercase tracking-wider">High</span>
-                          </div>
-                          <div className="p-3 bg-[#13172e]/60 border border-amber-500/30 rounded-lg flex justify-between items-start">
-                             <div>
-                                <span className="text-white font-bold text-xs block">Unit 12A - HVAC Filter Replacement</span>
-                                <span className="text-[10px] text-indigo-400">Reported by: Staff • 1 day ago</span>
-                             </div>
-                             <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[9px] font-bold uppercase tracking-wider">Med</span>
-                          </div>
-                       </div>
-                    </div>
-                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 shadow-lg flex flex-col">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Upcoming Lease Expirations</h4>
-                       <div className="space-y-3 overflow-y-auto pr-2">
-                          <div className="flex justify-between items-center text-xs p-2 hover:bg-[#13172e]/60 rounded transition-colors border-l-2 border-amber-500 pl-3">
-                             <div><span className="text-white font-bold block">Unit 7C</span><span className="text-indigo-400">Amanda Torres</span></div>
-                             <div className="text-right"><span className="text-amber-400 font-bold block">14 Days</span><button className="text-[9px] text-indigo-300 hover:text-white underline mt-0.5">Send Renewal</button></div>
-                          </div>
-                          <div className="flex justify-between items-center text-xs p-2 hover:bg-[#13172e]/60 rounded transition-colors border-l-2 border-indigo-500 pl-3">
-                             <div><span className="text-white font-bold block">Unit 2F</span><span className="text-indigo-400">TechCorp Solutions</span></div>
-                             <div className="text-right"><span className="text-indigo-200 font-bold block">45 Days</span><button className="text-[9px] text-indigo-300 hover:text-white underline mt-0.5">Send Renewal</button></div>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-            )}
-
-            {/* HVMS MODULE */}
-            {activeModule === 'hvms' && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                 <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><span className="text-xl md:text-2xl">📋</span> Butler (HVMS)</h3>
-                    <div className="flex gap-2">
-                       <button className="bg-[#090b14] border border-indigo-600 text-indigo-200 text-xs font-bold py-1.5 px-3 rounded-lg hover:bg-indigo-900/30">Scan QR</button>
-                       <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg shadow-lg">Log Walk-in</button>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">VISITORS INSIDE</div><div className="text-xl md:text-3xl text-white font-bold">45</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">PRE-REGISTERED</div><div className="text-xl md:text-3xl text-white font-bold">12</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 md:p-5 shadow-lg col-span-2 md:col-span-1"><div className="text-[9px] md:text-xs text-indigo-400 font-bold mb-1 tracking-wider truncate">SECURITY ALERTS</div><div className="text-xl md:text-3xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">0</div></div>
-                 </div>
-
-                 <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl overflow-hidden shadow-lg mt-2 flex-grow flex flex-col">
-                    <div className="bg-[#13172e]/80 px-4 py-3 border-b border-indigo-800/50 flex justify-between items-center">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Live Lobby Log</h4>
-                       <div className="flex gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mt-1"></span>
-                          <span className="text-[10px] text-indigo-200 font-mono tracking-wider">LIVE FEED</span>
-                       </div>
-                    </div>
-                    <div className="overflow-x-auto flex-grow">
-                       <table className="w-full text-left text-xs">
-                          <thead className="bg-[#090b14]/80 text-indigo-400/80">
-                             <tr>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Visitor Name</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Host / Destination</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Time In</th>
-                                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Status</th>
-                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-indigo-800/30 text-indigo-200">
-                             <tr className="hover:bg-indigo-900/20 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">David Miller <span className="text-[9px] font-normal text-indigo-400/60 block">ID: LTO-12345</span></td>
-                                <td className="px-4 py-3">Unit 14B (Smith)</td>
-                                <td className="px-4 py-3 font-mono text-indigo-300">10:45 AM</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[9px] font-bold tracking-wider">ON PREMISES</span></td>
-                             </tr>
-                             <tr className="hover:bg-indigo-900/20 transition-colors">
-                                <td className="px-4 py-3 font-bold text-white">Lalamove Delivery <span className="text-[9px] font-normal text-indigo-400/60 block">Courier</span></td>
-                                <td className="px-4 py-3">Frontdesk Drop-off</td>
-                                <td className="px-4 py-3 font-mono text-indigo-300">11:12 AM</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[9px] font-bold tracking-wider">ON PREMISES</span></td>
-                             </tr>
-                             <tr className="hover:bg-indigo-900/20 transition-colors opacity-60">
-                                <td className="px-4 py-3 font-bold text-white">Elena Rodriguez <span className="text-[9px] font-normal text-indigo-400/60 block">Pre-Registered</span></td>
-                                <td className="px-4 py-3">Unit 2A (Garcia)</td>
-                                <td className="px-4 py-3 font-mono text-indigo-300">-- : --</td>
-                                <td className="px-4 py-3"><span className="px-2 py-1 bg-[#090b14] text-indigo-400 border border-indigo-700 rounded-full text-[9px] font-bold tracking-wider">EXPECTED (2:00 PM)</span></td>
-                             </tr>
-                          </tbody>
-                       </table>
-                    </div>
-                 </div>
-              </div>
-            )}
-
-            {/* BMS MODULE */}
-            {activeModule === 'bms' && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                 <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><span className="text-xl md:text-2xl">🏗️</span> Sekyu (BMS)</h3>
-                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center gap-2">
-                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                       <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Building Systems Normal</span>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">MAIN POWER</div><div className="text-xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">GRID</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">WATER PRESSURE</div><div className="text-xl text-white font-bold">62 PSI</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">ENERGY SAVED</div><div className="text-xl text-white font-bold">29%</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">ACTIVE ALARMS</div><div className="text-xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">0</div></div>
-                 </div>
-
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow mt-2">
-                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 shadow-lg">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">HVAC Zone Control</h4>
-                       <div className="space-y-4">
-                          <div className="flex justify-between items-center p-3 bg-[#13172e]/60 rounded-lg border border-indigo-800/30">
-                             <div>
-                                <div className="text-sm font-bold text-white">Lobby Zone A</div>
-                                <div className="text-[10px] text-indigo-400 mt-1">Target: 22°C • Current: 22.5°C</div>
-                             </div>
-                             <div className="flex bg-[#090b14] border border-indigo-700 rounded-lg overflow-hidden">
-                                <button className="px-3 py-1.5 text-indigo-300 hover:bg-indigo-900/50 transition-colors">-</button>
-                                <div className="px-3 py-1.5 text-white font-mono border-x border-indigo-700 text-sm">22°C</div>
-                                <button className="px-3 py-1.5 text-indigo-300 hover:bg-indigo-900/50 transition-colors">+</button>
-                             </div>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-[#13172e]/60 rounded-lg border border-indigo-800/30">
-                             <div>
-                                <div className="text-sm font-bold text-white">Hallway Floor 2</div>
-                                <div className="text-[10px] text-indigo-400 mt-1">Target: 24°C • Current: 24.1°C</div>
-                             </div>
-                             <div className="flex bg-[#090b14] border border-indigo-700 rounded-lg overflow-hidden">
-                                <button className="px-3 py-1.5 text-indigo-300 hover:bg-indigo-900/50 transition-colors">-</button>
-                                <div className="px-3 py-1.5 text-white font-mono border-x border-indigo-700 text-sm">24°C</div>
-                                <button className="px-3 py-1.5 text-indigo-300 hover:bg-indigo-900/50 transition-colors">+</button>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                    <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 shadow-lg">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4 border-b border-indigo-900/50 pb-2">Common Area Lighting</h4>
-                       <div className="space-y-4">
-                          <div className="flex justify-between items-center p-3 bg-[#13172e]/60 rounded-lg border border-indigo-800/30">
-                             <div className="text-sm font-bold text-white">Main Entrance Exterior</div>
-                             <div className="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                                <div className="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                             </div>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-[#13172e]/60 rounded-lg border border-indigo-800/30">
-                             <div className="text-sm font-bold text-white">Parking Basement Level 1</div>
-                             <div className="w-10 h-5 bg-[#090b14] border border-indigo-700 rounded-full relative cursor-pointer">
-                                <div className="absolute left-1 top-1 w-3 h-3 bg-indigo-500 rounded-full"></div>
-                             </div>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-[#13172e]/60 rounded-lg border border-indigo-800/30">
-                             <div className="text-sm font-bold text-white">Rooftop Garden</div>
-                             <div className="w-10 h-5 bg-[#090b14] border border-indigo-700 rounded-full relative cursor-pointer">
-                                <div className="absolute left-1 top-1 w-3 h-3 bg-indigo-500 rounded-full"></div>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-            )}
-
-            {/* IoT MODULE */}
-            {activeModule === 'iot' && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                 <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                    <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><span className="text-xl md:text-2xl">📡</span> Housekeeper (IoT)</h3>
-                    <button className="bg-[#090b14] border border-indigo-600 text-indigo-200 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-indigo-900/30 transition-colors">Run Network Diagnostics</button>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">ONLINE SENSORS</div><div className="text-xl text-white font-bold">1,042</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">OFFLINE</div><div className="text-xl text-red-400 font-bold drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]">1</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">LOW BATTERY</div><div className="text-xl text-amber-400 font-bold drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]">5</div></div>
-                    <div className="bg-[#090b14]/60 border border-indigo-800/50 rounded-xl p-4 shadow-lg"><div className="text-[9px] text-indigo-400 font-bold mb-1 tracking-wider truncate">LAST NETWORK SYNC</div><div className="text-xl text-emerald-400 font-bold drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">Just now</div></div>
-                 </div>
-
-                 <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl overflow-hidden shadow-lg mt-2 flex-grow flex flex-col">
-                    <div className="bg-[#13172e]/80 px-4 py-3 border-b border-indigo-800/50 flex justify-between items-center">
-                       <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Device Status Grid</h4>
-                       <div className="text-[10px] text-indigo-400 font-mono">Filtering by: Action Required</div>
-                    </div>
-                    
-                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow overflow-y-auto">
-                       <div className="bg-[#13172e]/80 border border-red-500/30 rounded-xl p-4 flex flex-col justify-between shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                          <div className="flex justify-between items-start mb-4">
-                             <div>
-                                <div className="text-sm font-bold text-white flex items-center gap-2"><span className="text-red-400 text-lg">🌡️</span> Thermostat ZB</div>
-                                <div className="text-[10px] text-indigo-400 font-mono mt-1">ID: TH-8842-A</div>
-                             </div>
-                             <span className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-                          </div>
-                          <div>
-                             <div className="text-xs text-red-400 font-bold mb-2">STATUS: OFFLINE</div>
-                             <button className="w-full bg-[#090b14] border border-indigo-700 hover:border-red-500 text-indigo-200 text-[10px] font-bold py-1.5 rounded transition-colors">Ping Device</button>
-                          </div>
-                       </div>
-
-                       <div className="bg-[#13172e]/80 border border-amber-500/30 rounded-xl p-4 flex flex-col justify-between shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                          <div className="flex justify-between items-start mb-4">
-                             <div>
-                                <div className="text-sm font-bold text-white flex items-center gap-2"><span className="text-amber-400 text-lg">🔒</span> Smart Lock 402</div>
-                                <div className="text-[10px] text-indigo-400 font-mono mt-1">ID: LK-1192-B</div>
-                             </div>
-                             <span className="w-2.5 h-2.5 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span>
-                          </div>
-                          <div>
-                             <div className="flex justify-between text-[10px] font-bold text-indigo-300 mb-1">
-                                <span>BATTERY</span>
-                                <span className="text-amber-400">12%</span>
-                             </div>
-                             <div className="w-full bg-indigo-950/50 rounded-full h-1.5 mb-3">
-                                <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: '12%' }}></div>
-                             </div>
-                             <button className="w-full bg-[#090b14] border border-indigo-700 hover:border-amber-500 text-indigo-200 text-[10px] font-bold py-1.5 rounded transition-colors">Dispatch Maintenance</button>
-                          </div>
-                       </div>
-
-                       <div className="bg-[#13172e]/80 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between">
-                          <div className="flex justify-between items-start mb-4">
-                             <div>
-                                <div className="text-sm font-bold text-white flex items-center gap-2"><span className="text-blue-400 text-lg">💧</span> Leak Sensor B1</div>
-                                <div className="text-[10px] text-indigo-400 font-mono mt-1">ID: LS-0021-C</div>
-                             </div>
-                             <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-                          </div>
-                          <div>
-                             <div className="flex justify-between text-[10px] font-bold text-indigo-300 mb-1">
-                                <span>BATTERY</span>
-                                <span className="text-emerald-400">89%</span>
-                             </div>
-                             <div className="w-full bg-indigo-950/50 rounded-full h-1.5 mb-3">
-                                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '89%' }}></div>
-                             </div>
-                             <button className="w-full bg-[#090b14] border border-indigo-700 hover:border-emerald-500 text-indigo-200 text-[10px] font-bold py-1.5 rounded transition-colors">View Logs</button>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
               </div>
             )}
 

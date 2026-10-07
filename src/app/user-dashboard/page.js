@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase'; 
+import { supabase } from '@/lib/supabaseClient'; 
+
+import { HMSModule } from '@/components/modules/HMSModule';
+import { PMSModule } from '@/components/modules/PMSModule';
+import { HVMSModule } from '@/components/modules/HVMSModule';
+import { BMSModule } from '@/components/modules/BMSModule';
+import { IoTModule } from '@/components/modules/IoTModule';
 
 // --- Particle Network Background Component ---
 const ParticleBackground = () => {
@@ -790,26 +796,12 @@ export default function UserDashboard() {
               </div>
             )}
 
-            {/* CORE SAAS TEMPLATES (HMS, PMS, HVMS, BMS, IOT) */}
-            {['hms', 'pms', 'hvms', 'bms', 'iot'].includes(activeModule) && (
-              <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
-                <div className="flex justify-between items-center border-b border-indigo-800/50 pb-4">
-                  <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2">
-                    <span className="text-xl md:text-2xl">{ALL_MODULES.find(m => m.id === activeModule)?.icon}</span> 
-                    {ALL_MODULES.find(m => m.id === activeModule)?.label}
-                  </h3>
-                  <button className="bg-[#090b14] border border-indigo-600 text-indigo-200 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-indigo-900/30 transition-colors">Module Settings</button>
-                </div>
-                
-                <div className="flex-grow flex items-center justify-center border-2 border-dashed border-indigo-800/30 rounded-xl bg-[#090b14]/20">
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">{ALL_MODULES.find(m => m.id === activeModule)?.icon}</div>
-                    <h3 className="text-lg font-bold text-white mb-2">{ALL_MODULES.find(m => m.id === activeModule)?.label} Environment Active</h3>
-                    <p className="text-sm text-indigo-400/60 max-w-sm mx-auto">This module is fully integrated into your dashboard. Live data connections and telemetry are operating normally.</p>
-                  </div>
-                </div>
-              </div>
-            )}
+         {/* Core Operational Modules */}
+            {activeModule === 'hms' && <HMSModule />}
+            {activeModule === 'pms' && <PMSModule />}
+            {activeModule === 'hvms' && <HVMSModule />}
+            {activeModule === 'bms' && <BMSModule />}
+            {activeModule === 'iot' && <IoTModule />}
 
             {/* GENERIC CONNECTOR SAAS TEMPLATE */}
             {['hr', 'ais', 'crm', 'mis', 'pos', 'ims', 'ewallet', 'parcel', 'fleet', 'pms_proj'].includes(activeModule) && (

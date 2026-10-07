@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import nodemailer from 'nodemailer';
 
 // THIS LINE IS CRITICAL: It must be exactly 'export async function POST'

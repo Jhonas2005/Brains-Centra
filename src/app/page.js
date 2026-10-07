@@ -2,7 +2,7 @@
 
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 
 // --- Sign In & Forgot Password Pop-up Modal Component ---
 const SignInModal = ({ onClose }) => {
@@ -208,10 +208,7 @@ const InquiryModal = ({ subject, type, onClose }) => {
     }, 2500);
   };
 
-  const getAccentColor = () => {
-    return type === 'Hardware' ? 'cyan' : 'blue';
-  };
-  const accentColor = getAccentColor();
+  const accentColor = type === 'Hardware' ? 'cyan' : 'blue';
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -473,9 +470,29 @@ const FadeIn = ({ children, delay = 0, direction = "up" }) => {
   );
 };
 
-// --- Data Objects ---
+// --- UPDATED DATA OBJECTS (Colored Images) ---
 const clients = [
-  "Uratex", "Krispy Kreme", "Globe 917 Ventures", "Rebisco", "Big E Food Corp", "Eyebrowdery", "Philbelt", "Trends & Technologies"
+  { name: "Uratex", image: "/logos/uratex.png" },
+  { name: "Krispy Kreme", image: "/logos/krispy-kreme.png" },
+  { name: "Globe 917 Ventures", image: "/logos/globe.jpg" },
+  { name: "Rebisco", image: "/logos/rebisco.png" },
+  { name: "Big E Food Corp", image: "/logos/big-e.jpg" },
+  { name: "Eyebrowdery", image: "/logos/eyebrowdery.png" },
+  { name: "Philbelt", image: "/logos/philbelt.png" },
+  { name: "Trends & Technologies", image: "/logos/trends.png" }
+];
+
+const hardwarePartners = [
+  { name: "Google Cloud", image: "/logos/google-cloud.png" },
+  { name: "Microsoft", image: "/logos/microsoft.png" },
+  { name: "Cisco", image: "/logos/cisco.png" },
+  { name: "Dell", image: "/logos/dell.png" },
+  { name: "Apple", image: "/logos/apple.png" },
+  { name: "Acer", image: "/logos/acer.png" },
+  { name: "Asus", image: "/logos/asus.jpg" },
+  { name: "Samsung", image: "/logos/samsung.png" },
+  { name: "Oracle", image: "/logos/oracle.png" },
+  { name: "IBM", image: "/logos/ibm.png" }
 ];
 
 const connectorSystems = [
@@ -524,9 +541,6 @@ const hardwareProducts = [
   "Power Management", "Software Defined Network", "Software Enterprise Solutions", "Document Imaging", "Workstations"
 ];
 
-const hardwarePartners = [
-  "Google Cloud", "Microsoft", "Cisco", "Dell", "Apple", "Acer", "Asus", "Samsung", "Oracle", "IBM"
-];
 
 const modulesData = [
   {
@@ -622,7 +636,7 @@ const navLinks = [
   { id: "connector", label: "Connector", href: "#connector" },
   { id: "services", label: "Agency Services", href: "#services" },
   { id: "brands", label: "Our Brands", href: "#brands" },
-  { id: "hardware", label: "Our Products", href: "#hardware" },
+  { id: "hardware", label: "Hardware", href: "#hardware" },
   { id: "contact", label: "Contact", href: "#contact" },
 ];
 
@@ -988,13 +1002,19 @@ export default function CentralCommand() {
         </FadeIn>
       </header>
 
-      {/* --- CLIENT ROSTER MARQUEE --- */}
-      <div className="border-b border-indigo-900/30 bg-[#060810]/80 py-8 overflow-hidden">
+      {/* --- UPDATED: CLIENT ROSTER MARQUEE (Larger, colored images with hover scale) --- */}
+      <div className="border-b border-indigo-900/30 bg-[#060810]/80 py-10 overflow-hidden">
         <div className="max-w-[1600px] mx-auto px-8 lg:px-12 flex flex-col md:flex-row items-center gap-8">
           <span className="text-xs font-bold text-indigo-400/80 uppercase tracking-widest whitespace-nowrap">Trusted By Industry Leaders:</span>
-          <div className="flex flex-wrap justify-center md:justify-start gap-8 md:gap-12 opacity-70">
+          <div className="flex flex-wrap justify-center md:justify-start gap-10 md:gap-14 items-center w-full">
             {clients.map((client, idx) => (
-              <span key={idx} className="text-sm font-bold text-indigo-200 uppercase tracking-wide">{client}</span>
+              <img 
+                key={idx} 
+                src={client.image} 
+                alt={client.name} 
+                title={client.name}
+                className="h-10 md:h-14 object-contain hover:scale-110 transition-transform duration-300 drop-shadow-sm cursor-default"
+              />
             ))}
           </div>
         </div>
@@ -1244,6 +1264,7 @@ export default function CentralCommand() {
             </FadeIn>
           </div>
 
+          {/* --- UPDATED: AUTHORIZED PARTNER NETWORK (Glassmorphism + Colored Logos) --- */}
           <div className="mt-20 max-w-5xl mx-auto w-full">
             <FadeIn delay={200}>
               <div className="bg-[#13172e]/40 border border-indigo-800/50 rounded-2xl p-10 shadow-2xl relative overflow-hidden">
@@ -1251,10 +1272,15 @@ export default function CentralCommand() {
                 
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-8 text-center relative z-10 border-b border-indigo-900/50 pb-4">Authorized Partner Network</h4>
                 
-                <div className="flex flex-wrap justify-center gap-4 md:gap-6 relative z-10">
+                <div className="flex flex-wrap justify-center items-center gap-6 md:gap-10 relative z-10">
                   {hardwarePartners.map((partner, idx) => (
-                    <div key={idx} className="bg-[#090b14] border border-indigo-700/50 rounded-xl py-3 px-8 text-indigo-200 font-bold text-sm hover:border-cyan-500/80 hover:bg-cyan-900/30 hover:text-white transition-all cursor-default shadow-md hover:-translate-y-1">
-                      {partner}
+                    <div key={idx} className="bg-[#13172e]/60 backdrop-blur-sm border border-indigo-700/50 rounded-2xl py-6 px-8 hover:border-cyan-500/80 hover:bg-[#1a1f3c] transition-all cursor-default shadow-lg hover:shadow-cyan-500/20 hover:-translate-y-1 group flex items-center justify-center min-w-[160px]">
+                      <img 
+                        src={partner.image} 
+                        alt={partner.name}
+                        title={partner.name}
+                        className="h-12 md:h-16 object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md" 
+                      />
                     </div>
                   ))}
                 </div>
@@ -1330,7 +1356,7 @@ export default function CentralCommand() {
                 
                 <button 
                   onClick={() => setIsConsultationOpen(true)}
-                  className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white text-lg font-bold py-5 px-10 rounded-xl transition-all duration-300 shadow-[0_10px_30px_rgba(217,70,239,0.3)] hover:shadow-[0_15px_40px_rgba(217,70,239,0.5)] active:scale-95 relative z-10"
+                  className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white text-lg font-bold py-5 px-10 rounded-xl transition-all duration-300 shadow-[0_10px_30px_rgba(217,70,239,0.3)] hover:shadow-[0_15px_40px_rgba(217,70,239,0.5)] active:scale-95 relative z-10"
                 >
                   Request a Consultation
                 </button>

@@ -7,9 +7,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Check if configuration is missing or contains placeholder values
 const isConfigMissing = !supabaseUrl || !supabaseAnonKey || 
   supabaseUrl.includes('your_supabase') || 
-  supabaseAnonKey.includes('your_supabase');
+  supabaseAnonKey.includes('your_supabase') ||
+  supabaseUrl === 'https://placeholder.supabase.co';
 
-if (isConfigMissing) {
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.RUNTIME;
+
+if (isConfigMissing && !isBuildTime) {
   console.error('❌ Supabase configuration missing or invalid!');
   console.error('Please update your .env.local file with your Supabase credentials:');
   console.error('NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co');
@@ -17,30 +20,17 @@ if (isConfigMissing) {
   console.error('SUPABASE_SERVICE_ROLE_KEY=your_service_role_key');
 }
 
-// Create a dummy client to prevent crashes during development when config is missing
-const dummyClient = {
+// Create clients with placeholder values for build time
+const safeSupabaseUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const safeSupabaseAnonKey = supabaseAnonKey || 'placeholder_key';
+const safeSupabaseServiceKey = supabaseServiceKey || 'placeholder_service_key';
+
+// Export the clients
+export const supabase = createClient(safeSupabaseUrl, safeSupabaseAnonKey);
+
+export const supabaseAdmin = createClient(safeSupabaseUrl, safeSupabaseServiceKey, {
   auth: {
-    signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
-    signUp: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }),
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    admin: {
-      createUser: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } })
-    }
-  },
-  from: () => ({
-    insert: () => Promise.resolve({ error: { message: 'Supabase not configured' } })
-  })
-};
-
-// Export the appropriate clients based on configuration
-export const supabase = isConfigMissing ? dummyClient : createClient(supabaseUrl, supabaseAnonKey);
-
-export const supabaseAdmin = isConfigMissing || !supabaseServiceKey 
-  ? null 
-  : createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});

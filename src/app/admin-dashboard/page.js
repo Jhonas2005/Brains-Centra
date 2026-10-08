@@ -94,7 +94,7 @@ const ParticleBackground = () => {
   );
 };
 
-// --- NEW: Constants & Formatting Tools ---
+// --- Constants & Formatting Tools ---
 const ALL_MODULES = [
   { id: "overview", label: "Command Overview", shortName: "HOME", icon: "🌐" },
   { id: "hms", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨", price: 8500 },
@@ -118,26 +118,31 @@ export default function AdminDashboard() {
   const [userToDelete, setUserToDelete] = useState(null); 
   const [subscriptionToCancel, setSubscriptionToCancel] = useState(null);
   
-  // --- NEW: View Subscription Modal State ---
   const [viewSubModal, setViewSubModal] = useState(null);
+  
+  // --- EMAIL REPLY MODAL STATE ---
+  const [emailReplyModal, setEmailReplyModal] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('customer');
+  const [activeTab, setActiveTab] = useState('inquiries'); 
   const [processingId, setProcessingId] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [subFilter, setSubFilter] = useState('all');
   
-  // --- NEW: Subscription Filter State ---
-  const [subFilter, setSubFilter] = useState('all'); // 'all', 'subscribed', 'unsubscribed'
+  const [inquiriesFilter, setInquiriesFilter] = useState('All');
+  const [inquiries, setInquiries] = useState([]);
 
   useEffect(() => {
     setSearchQuery('');
     setStatusFilter('all');
     setSubFilter('all');
+    setInquiriesFilter('All');
   }, [activeTab]);
 
   useEffect(() => {
     fetchUsers();
+    fetchInquiries();
   }, []);
 
   const fetchUsers = async () => {
@@ -145,11 +150,7 @@ export default function AdminDashboard() {
       setLoading(true);
       const response = await fetch('/api/admin/users');
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch users');
-      }
-      
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch users');
       setUsers(data.users);
     } catch (err) {
       setError(err.message);
@@ -158,17 +159,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchInquiries = async () => {
+    try {
+      const response = await fetch('/api/admin/inquiries');
+      const data = await response.json();
+      if (response.ok) setInquiries(data.inquiries || []);
+    } catch (err) {
+      console.error('Failed to fetch inquiries:', err);
+    }
+  };
+
   const updateUserRole = async (userId, newRole) => {
     try {
-      const response = await fetch('/api/admin/users', {
+      await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'updateRole', userId, newRole }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Failed to update user role');
-
       fetchUsers();
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -177,18 +184,13 @@ export default function AdminDashboard() {
 
   const confirmAndDeleteUser = async () => {
     if (!userToDelete) return;
-
     try {
       setProcessingId(userToDelete.id);
-      const response = await fetch('/api/admin/users', {
+      await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete', userId: userToDelete.id }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-
       setUserToDelete(null); 
       fetchUsers(); 
     } catch (err) {
@@ -200,18 +202,13 @@ export default function AdminDashboard() {
 
   const confirmAndCancelSubscription = async () => {
     if (!subscriptionToCancel) return;
-
     try {
       setProcessingId(subscriptionToCancel.id);
-      const response = await fetch('/api/admin/users', {
+      await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancelSubscription', userId: subscriptionToCancel.id }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-
       setSubscriptionToCancel(null); 
       fetchUsers(); 
     } catch (err) {
@@ -224,15 +221,11 @@ export default function AdminDashboard() {
   const handleTrialAction = async (userId, email, name, action) => {
     try {
       setProcessingId(userId);
-      const response = await fetch('/api/admin/trial', {
+      await fetch('/api/admin/trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, email, name, action }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-
       fetchUsers();
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -241,19 +234,94 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- NEW: Open Individual Module Subscription View ---
   const handleViewSubscription = async (user, moduleId) => {
     const fullMod = ALL_MODULES.find(m => m.id === moduleId);
     setViewSubModal({ user, module: fullMod, billingInfo: null, loading: true });
-
     try {
       const res = await fetch(`/api/user/billing?userId=${user.id}`);
-      if (!res.ok) throw new Error('Failed to load billing history');
       const data = await res.json();
       setViewSubModal({ user, module: fullMod, billingInfo: data, loading: false });
     } catch (err) {
-      console.error(err);
       setViewSubModal({ user, module: fullMod, billingInfo: null, loading: false, error: true });
+    }
+  };
+
+  const toggleInquiryStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'Pending' ? 'Contacted' : 'Pending';
+    setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: newStatus } : inq));
+    try {
+      await fetch('/api/admin/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateStatus', id, newStatus })
+      });
+    } catch (err) {
+      setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: currentStatus } : inq));
+    }
+  };
+
+  const deleteInquiry = async (id) => {
+    const previousInquiries = [...inquiries];
+    setInquiries(prev => prev.filter(inq => inq.id !== id));
+    try {
+      await fetch('/api/admin/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id })
+      });
+    } catch (err) {
+      setInquiries(previousInquiries);
+    }
+  };
+
+  // --- EMAIL REPLY SUBMISSION LOGIC ---
+  const handleSendEmailReply = async (e) => {
+    e.preventDefault();
+    setProcessingId('email-sending');
+
+    const fileInput = e.target.attachment.files[0];
+    let attachmentData = null;
+
+    // Convert file to Base64 to send safely via JSON to Next.js API
+    if (fileInput) {
+      const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Drop the data:mime prefix
+        reader.onerror = error => reject(error);
+      });
+      
+      const base64Content = await toBase64(fileInput);
+      attachmentData = {
+        filename: fileInput.name,
+        base64Content: base64Content
+      };
+    }
+
+    const payload = {
+      to: e.target.toEmail.value,
+      subject: e.target.subject.value,
+      message: e.target.message.value,
+      attachment: attachmentData
+    };
+
+    try {
+      const res = await fetch('/api/admin/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Failed to send email');
+      
+      // Auto mark as contacted after sending email
+      toggleInquiryStatus(emailReplyModal.id, 'Pending');
+      setEmailReplyModal(null);
+      alert('Email sent successfully!');
+    } catch (err) {
+      alert(`Error sending email: ${err.message}`);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -263,39 +331,45 @@ export default function AdminDashboard() {
       : 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
   };
 
+  const getInquiryTypeBadge = (type) => {
+    switch(type) {
+      case 'SaaS Trial': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+      case 'Connector Trial': return 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+      case 'Agency Service': return 'bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30';
+      case 'Hardware': return 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
+      case 'Consultation': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+    }
+  };
+
   const handleLogout = () => {
     window.location.href = "/";
   };
 
-  // --- CHANGED: Added `subFilter` to dynamic filtering logic ---
   const displayedUsers = users.filter(user => {
     if (user.role !== activeTab) return false;
-
     if (activeTab === 'customer') {
-      if (statusFilter !== 'all') {
-        const userStatus = user.status || 'new'; 
-        if (userStatus !== statusFilter) return false;
-      }
-
-      if (subFilter === 'subscribed') {
-        if (!user.subscribed_modules || user.subscribed_modules.length === 0) return false;
-      }
-      if (subFilter === 'unsubscribed') {
-        if (user.subscribed_modules && user.subscribed_modules.length > 0) return false;
-      }
+      if (statusFilter !== 'all' && (user.status || 'new') !== statusFilter) return false;
+      if (subFilter === 'subscribed' && (!user.subscribed_modules || user.subscribed_modules.length === 0)) return false;
+      if (subFilter === 'unsubscribed' && (user.subscribed_modules && user.subscribed_modules.length > 0)) return false;
     }
-
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
       const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-      const email = (user.email || '').toLowerCase();
-      const company = (user.company || '').toLowerCase();
-      
-      if (!fullName.includes(query) && !email.includes(query) && !company.includes(query)) {
-        return false;
-      }
+      if (!fullName.includes(query) && !(user.email || '').toLowerCase().includes(query) && !(user.company || '').toLowerCase().includes(query)) return false;
     }
+    return true;
+  });
 
+  const displayedInquiries = inquiries.filter(inq => {
+    if (inquiriesFilter !== 'All' && inq.type !== inquiriesFilter) return false;
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      return (inq.name && inq.name.toLowerCase().includes(query)) || 
+             (inq.email && inq.email.toLowerCase().includes(query)) || 
+             (inq.company && inq.company.toLowerCase().includes(query)) || 
+             (inq.subject && inq.subject.toLowerCase().includes(query));
+    }
     return true;
   });
 
@@ -329,7 +403,58 @@ export default function AdminDashboard() {
     <div className="relative min-h-screen text-gray-100 font-sans selection:bg-fuchsia-500/30 selection:text-fuchsia-100 py-6 md:py-12">
       <ParticleBackground />
 
-      {/* --- NEW: View Subscription Details Modal --- */}
+      {/* --- EMAIL REPLY MODAL --- */}
+      {emailReplyModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setEmailReplyModal(null)}></div>
+          <form onSubmit={handleSendEmailReply} className="relative w-full max-w-2xl bg-gradient-to-b from-[#13172e] to-[#090b14] border border-indigo-500/50 rounded-2xl p-6 md:p-8 z-10 shadow-[0_0_40px_rgba(79,70,229,0.25)] flex flex-col">
+            
+            <div className="flex justify-between items-start mb-6 border-b border-indigo-800/50 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">✉️</span> Reply to Inquiry
+                </h3>
+                <p className="text-xs text-indigo-300/80 mt-1">Directly email <span className="font-bold text-white">{emailReplyModal.name}</span></p>
+              </div>
+              <button type="button" onClick={() => setEmailReplyModal(null)} className="text-indigo-400 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">To</label>
+                <input name="toEmail" readOnly value={emailReplyModal.email} className="w-full bg-[#060810]/50 border border-indigo-800/80 rounded-xl px-4 py-2.5 text-sm text-indigo-300 cursor-not-allowed" />
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Subject</label>
+                <input name="subject" defaultValue={`Re: ${emailReplyModal.subject}`} required className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Message Body (Supports standard links)</label>
+                <textarea name="message" required rows="6" placeholder="Type your response here. Paste URLs normally, they will be clickable..." className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"></textarea>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Attach File (PDF, Image, etc.)</label>
+                <input name="attachment" type="file" className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-2 text-sm text-indigo-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-600/20 file:text-blue-400 hover:file:bg-blue-600/40 transition-all" />
+              </div>
+            </div>
+
+            <div className="mt-8 pt-4 border-t border-indigo-800/50 flex gap-3 justify-end">
+               <button type="button" onClick={() => setEmailReplyModal(null)} className="px-5 py-2.5 text-sm font-bold text-indigo-300 hover:text-white transition-colors">Cancel</button>
+               <button type="submit" disabled={processingId === 'email-sending'} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2">
+                 {processingId === 'email-sending' ? 'Sending...' : 'Send Email'}
+                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+               </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* --- View Subscription Details Modal --- */}
       {viewSubModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setViewSubModal(null)}></div>
@@ -492,13 +617,12 @@ export default function AdminDashboard() {
 
       <div className="relative w-full max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 z-10">
         
-        {/* Header */}
         <div className="mb-8 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-0">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-1 md:mb-2">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-blue-400">Admin Command</span>
             </h1>
-            <p className="text-sm md:text-base text-indigo-300/80">Manage operators and platform permissions.</p>
+            <p className="text-sm md:text-base text-indigo-300/80">Manage operators, platform permissions, and incoming requests.</p>
           </div>
           <button 
             onClick={() => setShowLogoutConfirm(true)}
@@ -508,8 +632,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Stats Cards - Tab Switchers */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 md:gap-6 mb-10">
           <div className="bg-[#13172e]/80 backdrop-blur-md rounded-2xl border border-indigo-800/50 shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 flex flex-col justify-center items-center text-center">
             <h3 className="text-[10px] md:text-sm font-bold text-indigo-300 uppercase tracking-wide leading-tight break-words">Total Users</h3>
             <p className="text-xl md:text-4xl font-bold text-white mt-1 md:mt-3">{users.length}</p>
@@ -546,14 +669,31 @@ export default function AdminDashboard() {
               {users.filter(user => user.role === 'customer').length}
             </p>
           </div>
+
+          <div 
+            onClick={() => setActiveTab('inquiries')}
+            className={`bg-[#13172e]/80 backdrop-blur-md rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.5)] p-3 md:p-6 cursor-pointer flex flex-col justify-center items-center text-center transition-all ${
+              activeTab === 'inquiries' 
+                ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/50' 
+                : 'border-indigo-800/50 hover:border-emerald-500/50'
+            }`}
+          >
+            <h3 className={`text-[10px] md:text-sm font-bold uppercase tracking-wide leading-tight break-words transition-colors ${activeTab === 'inquiries' ? 'text-emerald-400' : 'text-indigo-300'}`}>
+              New Requests
+            </h3>
+            <p className="text-xl md:text-4xl font-bold text-emerald-400 mt-1 md:mt-3 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+              {inquiries.filter(i => i.status === 'Pending').length}
+            </p>
+          </div>
         </div>
 
-        {/* Dynamic Users Table */}
         <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl shadow-[0_0_40px_rgba(217,70,239,0.15)] overflow-hidden">
           
           <div className="px-6 py-4 border-b border-indigo-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#090b14]/50">
             <h3 className="text-lg font-bold text-white whitespace-nowrap">
-              {activeTab === 'admin' ? 'Administrator Roster' : 'Customer Roster'}
+              {activeTab === 'admin' ? 'Administrator Roster' : 
+               activeTab === 'customer' ? 'Customer Roster' : 
+               'Inquiries & Form Submissions'}
             </h3>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -565,14 +705,13 @@ export default function AdminDashboard() {
                 </div>
                 <input 
                   type="text" 
-                  placeholder="Search users..." 
+                  placeholder="Search..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-indigo-500/60 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 w-full transition-all"
                 />
               </div>
 
-              {/* --- CHANGED: Added Subscription Filter --- */}
               {activeTab === 'customer' && (
                 <>
                   <select 
@@ -600,31 +739,65 @@ export default function AdminDashboard() {
                   </select>
                 </>
               )}
+
+              {activeTab === 'inquiries' && (
+                <select 
+                  value={inquiriesFilter}
+                  onChange={(e) => setInquiriesFilter(e.target.value)}
+                  className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 cursor-pointer w-full sm:w-44 transition-all appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23818cf8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em' }}
+                >
+                  <option value="All">All Categories</option>
+                  <option value="SaaS Trial">SaaS Trial</option>
+                  <option value="Connector Trial">Connector Trial</option>
+                  <option value="Agency Service">Agency Service</option>
+                  <option value="Hardware">Hardware</option>
+                  <option value="Consultation">Consultation</option>
+                </select>
+              )}
             </div>
           </div>
           
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-indigo-800/30 text-left">
-              <thead className="bg-[#090b14]/30">
-                <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Role</th>
-                  
-                  {activeTab === 'customer' && (
-                    <>
-                      <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Subscription</th>
-                    </>
-                  )}
-                  
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
+              
+              {activeTab !== 'inquiries' && (
+                <thead className="bg-[#090b14]/30">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Company</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Role</th>
+                    
+                    {activeTab === 'customer' && (
+                      <>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Subscription</th>
+                      </>
+                    )}
+                    
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Joined</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+              )}
+
+              {activeTab === 'inquiries' && (
+                <thead className="bg-[#090b14]/30">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Date Received</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Requester</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Inquiry Type</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Subject / Details</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+              )}
+
               <tbody className="divide-y divide-indigo-800/30 bg-transparent">
-                {displayedUsers.map((user) => (
+                
+                {activeTab !== 'inquiries' && displayedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-indigo-900/20 transition-colors">
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div>
@@ -667,7 +840,6 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         
-                        {/* --- CHANGED: Updated Subscription Column to Interactive Module Pills --- */}
                         <td className="px-6 py-5 whitespace-nowrap">
                           {user.subscribed_modules && user.subscribed_modules.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5 max-w-[150px]">
@@ -726,7 +898,6 @@ export default function AdminDashboard() {
                           <option value="admin">Admin</option>
                         </select>
 
-                        {/* Existing global Cancel Sub Button */}
                         {activeTab === 'customer' && user.subscribed_modules && user.subscribed_modules.length > 0 && (
                           <button 
                             onClick={() => setSubscriptionToCancel({ id: user.id, name: user.first_name })}
@@ -738,7 +909,6 @@ export default function AdminDashboard() {
                           </button>
                         )}
 
-                        {/* Delete Button */}
                         <button 
                           onClick={() => setUserToDelete({ id: user.id, name: user.first_name })}
                           disabled={processingId === user.id}
@@ -747,21 +917,96 @@ export default function AdminDashboard() {
                         >
                           DELETE
                         </button>
-
                       </div>
                     </td>
                   </tr>
                 ))}
+
+                {/* --- INQUIRIES ROWS --- */}
+                {activeTab === 'inquiries' && displayedInquiries.map((inq) => (
+                  <tr key={inq.id} className="hover:bg-indigo-900/20 transition-colors">
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="text-sm font-bold text-white">
+                        {new Date(inq.created_at || inq.date).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-indigo-400/70 font-mono mt-1">
+                        {new Date(inq.created_at || inq.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="text-sm font-bold text-white">{inq.name}</div>
+                      <div className="text-xs text-indigo-300 mt-1">{inq.email}</div>
+                      {inq.company && <div className="text-[10px] text-indigo-400/60 font-mono mt-1 uppercase">{inq.company}</div>}
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getInquiryTypeBadge(inq.type)}`}>
+                        {inq.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="text-sm font-bold text-indigo-100">{inq.subject}</div>
+                      <div className="text-xs text-indigo-300/80 mt-1 truncate max-w-xs">{inq.details || <span className="italic opacity-50">No additional details</span>}</div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        inq.status === 'Pending' 
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      }`}>
+                        {inq.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        
+                        {/* --- NEW: EMAIL REPLY BUTTON --- */}
+                        <button 
+                          onClick={() => setEmailReplyModal(inq)}
+                          className="bg-blue-600/20 hover:bg-blue-500/40 border border-blue-500/50 text-blue-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm"
+                          title="Reply via Email"
+                        >
+                          ✉️ REPLY
+                        </button>
+
+                        <button 
+                          onClick={() => toggleInquiryStatus(inq.id, inq.status)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                            inq.status === 'Pending' 
+                              ? 'bg-emerald-600/20 hover:bg-emerald-500/40 border-emerald-500/50 text-emerald-400 hover:text-white'
+                              : 'bg-amber-600/20 hover:bg-amber-500/40 border-amber-500/50 text-amber-400 hover:text-white'
+                          }`}
+                        >
+                          {inq.status === 'Pending' ? 'MARK CONTACTED' : 'MARK PENDING'}
+                        </button>
+                        <button 
+                          onClick={() => deleteInquiry(inq.id)}
+                          className="bg-[#090b14] hover:bg-red-900/30 border border-red-900/50 hover:border-red-500/50 text-red-500/70 hover:text-red-400 text-[10px] font-bold py-2 px-3 rounded-lg transition-all"
+                          title="Delete Request"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
               </tbody>
             </table>
           </div>
 
-          {displayedUsers.length === 0 && (
+          {activeTab !== 'inquiries' && displayedUsers.length === 0 && (
             <div className="text-center py-16">
               <div className="text-indigo-400/60 mb-2">No users found matching your filters.</div>
               <div className="w-16 h-1 bg-indigo-900/50 mx-auto rounded-full mt-4"></div>
             </div>
           )}
+          {activeTab === 'inquiries' && displayedInquiries.length === 0 && (
+            <div className="text-center py-16">
+              <div className="text-emerald-400/60 mb-2">No inquiries found matching your filters.</div>
+              <div className="w-16 h-1 bg-emerald-900/50 mx-auto rounded-full mt-4"></div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

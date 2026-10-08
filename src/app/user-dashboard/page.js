@@ -3,6 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 
+
+import { MyRequestsModule } from '@/components/modules/MyRequestsModule';
+import { ConnectorModule } from '@/components/modules/ConnectorModule';
+import { HardwareModule } from '@/components/modules/HardwareModule';
+import { BrandProfileModule } from '@/components/modules/BrandProfileModule';
 import { HMSModule } from '@/components/modules/HMSModule';
 import { PMSModule } from '@/components/modules/PMSModule';
 import { HVMSModule } from '@/components/modules/HVMSModule';
@@ -104,6 +109,7 @@ const ParticleBackground = () => {
 // --- EXPANDED MODULES & ECOSYSTEM DATA ---
 const ALL_MODULES = [
   { id: "overview", category: "Dashboard", label: "Command Overview", shortName: "HOME", icon: "🌐" },
+  { id: "my-requests", category: "Dashboard", label: "My Inquiries & Requests", shortName: "REQ", icon: "📑" },
   
   // Core Facilities
   { id: "hms", category: "Core Facilities", label: "Frontdesk (HMS)", shortName: "HMS", icon: "🏨", price: 8500 },
@@ -143,14 +149,14 @@ const agencyServices = [
 ];
 
 const subsidiaryBrands = [
-  { name: "ASAP!", image: "/logos/asap-logo.png", icon: "🚀", desc: "All Services App for fast, professional blue and white-collar booking." },
-  { name: "KlassMall", image: "/logos/klassmall-logo.png", icon: "🛒", desc: "B2B and B2C wholesale retail platform connecting direct to manufacturers." },
-  { name: "Luxurious Cleaning Co.", image: "/logos/luxurious-logo.png", icon: "✨", desc: "Top-tier general, deep, and post-construction cleaning services." },
-  { name: "The Soap Republic", image: "/logos/soap-republic-logo.png", icon: "🧼", desc: "High-quality, eco-friendly household and industrial cleaning products." },
-  { name: "The Beauty Alley", image: "/logos/beauty-alley-logo.png", icon: "💆‍♀️", desc: "Luxurious wellness and health home services, including IV drips." },
-  { name: "Green Oasis", image: "/logos/green-oasis-logo.png", icon: "🌿", desc: "Landscape design, interior biophilic installations, and garden maintenance." },
-  { name: "The Finest Fit", image: "/logos/finest-fit-logo.png", icon: "👕", desc: "High-quality customized uniforms, corporate apparel, and printing." },
-  { name: "Portress", image: "/logos/portress-logo.png", icon: "🚢", desc: "B2B supply chain and logistics solutions powered by Klassic Marketing." },
+  { id: "asap", name: "ASAP!", image: "/logos/asap-logo.png", icon: "🚀", desc: "All Services App for fast, professional blue and white-collar booking." },
+  { id: "klassmall", name: "KlassMall", image: "/logos/klassmall-logo.png", icon: "🛒", desc: "B2B and B2C wholesale retail platform connecting direct to manufacturers." },
+  { id: "luxurious-cleaning", name: "Luxurious Cleaning Co.", image: "/logos/luxurious-logo.png", icon: "✨", desc: "Top-tier general, deep, and post-construction cleaning services." },
+  { id: "soap-republic", name: "The Soap Republic", image: "/logos/soap-republic-logo.png", icon: "🧼", desc: "High-quality, eco-friendly household and industrial cleaning products." },
+  { id: "beauty-alley", name: "The Beauty Alley", image: "/logos/beauty-alley-logo.png", icon: "💆‍♀️", desc: "Luxurious wellness and health home services, including IV drips." },
+  { id: "green-oasis", name: "The Green Oasis", image: "/logos/green-oasis-logo.png", icon: "🌿", desc: "Landscape design, interior biophilic installations, and garden maintenance." },
+  { id: "finest-fit", name: "The Finest Fit", image: "/logos/finest-fit-logo.png", icon: "👕", desc: "High-quality customized uniforms, corporate apparel, and printing." },
+  { id: "portress", name: "Portress", image: "/logos/portress-logo.png", icon: "🚢", desc: "B2B supply chain and logistics solutions powered by Klassic Marketing." },
 ];
 
 const hardwareProducts = [
@@ -170,14 +176,40 @@ const formatPHP = (amount) => {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 };
 
-// --- GENERIC INQUIRY MODAL ---
-const InquiryModal = ({ subject, type, onClose }) => {
+// --- UPDATED GENERIC INQUIRY MODAL (Connects to Supabase) ---
+const InquiryModal = ({ subject, type, user, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => onClose(), 2500);
+    setLoading(true);
+
+    const formData = {
+      type: type, // e.g., 'Hardware', 'Service', 'Consultation'
+      subject: subject,
+      name: user ? `${user.first_name} ${user.last_name}` : 'Unknown User',
+      email: user?.email || 'Unknown Email',
+      company: user?.company || 'Independent Operator',
+      details: e.target.details.value
+    };
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => onClose(), 2500);
+      }
+    } catch (error) {
+      console.error("Submission failed", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const accentColor = type === 'Hardware' ? 'cyan' : 'blue';
@@ -193,8 +225,8 @@ const InquiryModal = ({ subject, type, onClose }) => {
         {submitted ? (
           <div className="text-center py-8 animate-fadeIn">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 border border-emerald-500/50 text-emerald-400 text-3xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">✓</div>
-            <h3 className="text-xl font-bold text-white mb-2">Inquiry Sent!</h3>
-            <p className="text-sm text-indigo-200">Our {type === 'Hardware' ? 'procurement' : 'agency'} team will contact you shortly regarding your request for {subject}.</p>
+            <h3 className="text-xl font-bold text-white mb-2">Request Sent!</h3>
+            <p className="text-sm text-indigo-200">This request has been added to your tracking ledger. Our team will process it shortly.</p>
           </div>
         ) : (
           <div className="animate-fadeIn">
@@ -202,20 +234,20 @@ const InquiryModal = ({ subject, type, onClose }) => {
             <p className="text-sm text-indigo-300/80 mb-6">Inquire about <span className={`text-${accentColor}-400 font-bold`}>{subject}</span>.</p>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Name and Email are auto-filled and read-only since they are logged in */}
               <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
-                <input type="text" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="John Doe" />
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Requester Profile</label>
+                <div className="w-full bg-[#060810]/50 border border-indigo-800/50 rounded-lg px-4 py-2.5 text-sm text-indigo-400/80 cursor-not-allowed">
+                  {user?.first_name} {user?.last_name} ({user?.email})
+                </div>
               </div>
+              
               <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Email</label>
-                <input type="email" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="john@company.com" />
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Additional Details / Custom Specs</label>
+                <textarea name="details" rows="4" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="Provide any specific requirements, sizing, or operational details..."></textarea>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Additional Details</label>
-                <textarea rows="3" className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="Tell us more about your needs..."></textarea>
-              </div>
-              <button type="submit" className={`w-full bg-gradient-to-r from-${accentColor}-600 to-indigo-600 hover:from-${accentColor}-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all`}>
-                Submit Inquiry
+              <button disabled={loading} type="submit" className={`w-full bg-gradient-to-r from-${accentColor}-600 to-indigo-600 hover:from-${accentColor}-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all disabled:opacity-50`}>
+                {loading ? 'Submitting...' : 'Submit Request'}
               </button>
             </form>
           </div>
@@ -228,11 +260,14 @@ const InquiryModal = ({ subject, type, onClose }) => {
 export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
+  const [hardwareSearch, setHardwareSearch] = useState('');
   const [billingData, setBillingData] = useState({ payment_methods: [], invoices: [] });
   const [daysLeft, setDaysLeft] = useState(0);
   
+  
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [activeModule, setActiveModule] = useState("overview"); 
+  const [selectedBrandId, setSelectedBrandId] = useState(null);
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUpgradeModules, setSelectedUpgradeModules] = useState([]);
@@ -446,6 +481,7 @@ export default function UserDashboard() {
         <InquiryModal 
           subject={inquiryModal.subject} 
           type={inquiryModal.type} 
+          user={userData} 
           onClose={() => setInquiryModal({ isOpen: false, subject: "", type: "" })} 
         />
       )}
@@ -635,7 +671,7 @@ export default function UserDashboard() {
                   {category}
                 </div>
                 {categoryModules.map((module) => {
-                  const isAlwaysAccessible = ['overview', 'subscription', 'services', 'brands', 'hardware'].includes(module.id);
+                  const isAlwaysAccessible = ['overview', 'my-requests', 'subscription', 'services', 'brands', 'hardware'].includes(module.id);
                   const isSubscribed = userData?.subscribed_modules?.includes(module.id);
                   const isClickable = isAlwaysAccessible || isSubscribed;
                   const isActive = activeModule === module.id;
@@ -796,13 +832,26 @@ export default function UserDashboard() {
               </div>
             )}
 
-         {/* Core Operational Modules */}
-            {activeModule === 'hms' && <HMSModule />}
-            {activeModule === 'pms' && <PMSModule />}
-            {activeModule === 'hvms' && <HVMSModule />}
-            {activeModule === 'bms' && <BMSModule />}
-            {activeModule === 'iot' && <IoTModule />}
+         {/* --- USER REQUEST TRACKING TAB --- */}
+{activeModule === 'my-requests' && (
+  <MyRequestsModule userEmail={userData?.email} />
+)}
 
+{activeModule === 'hardware-catalog' && (
+  <HardwareModule openInquiryModal={openInquiryModal} />
+)}
+
+{/* --- CORE SAAS MODULES --- */}
+{activeModule === 'hms' && <HMSModule />}
+{activeModule === 'pms' && <PMSModule />}
+{activeModule === 'hvms' && <HVMSModule />}
+{activeModule === 'bms' && <BMSModule />}
+{activeModule === 'iot' && <IoTModule />}
+
+{/* --- FUNCTIONAL CONNECTOR SYSTEMS --- */}
+{['hr', 'ais', 'crm', 'mis', 'pos', 'ims', 'ewallet', 'parcel', 'fleet', 'pms_proj'].includes(activeModule) && (
+  <ConnectorModule systemId={activeModule} companyName={userData?.company} />
+)}
             {/* GENERIC CONNECTOR SAAS TEMPLATE */}
             {['hr', 'ais', 'crm', 'mis', 'pos', 'ims', 'ewallet', 'parcel', 'fleet', 'pms_proj'].includes(activeModule) && (
               <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
@@ -868,41 +917,88 @@ export default function UserDashboard() {
 
             {/* HARDWARE CATALOG TAB */}
             {activeModule === 'hardware' && (
-              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
-                <div className="border-b border-indigo-800/50 pb-4 flex justify-between items-end">
+              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn font-sans">
+                
+                {/* Clean Header with Primary CTA */}
+                <div className="border-b border-indigo-800/50 pb-5 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-1">Hardware Procurement</h3>
-                    <p className="text-xs text-indigo-300/80">Request quotes for enterprise IT infrastructure and flagship products.</p>
+                    <h3 className="text-2xl font-black text-white tracking-tight mb-1">Hardware Procurement</h3>
+                    <p className="text-sm text-indigo-300/80">Request quotes for enterprise IT infrastructure and flagship products.</p>
                   </div>
                   <button 
                     onClick={() => openInquiryModal('General Hardware Procurement', 'Hardware')}
-                    className="bg-cyan-600/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold py-1.5 px-4 rounded-lg hover:bg-cyan-600/40 transition-colors"
+                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold py-2.5 px-6 rounded-xl shadow-lg hover:shadow-cyan-500/25 transition-all active:scale-95"
                   >
-                    Request Quote
+                    + Request General Quote
                   </button>
                 </div>
                 
-                <div className="grid lg:grid-cols-2 gap-4 mb-4">
-                  <div className="bg-[#090b14]/60 border border-cyan-800/50 rounded-xl p-4 flex flex-col">
-                    <h4 className="text-sm font-bold text-white mb-2">Millennium Interactive Board</h4>
-                    <p className="text-xs text-indigo-200/80 mb-4">4K Ultra HD touch panel with embedded OS and telepresence camera.</p>
-                    <button onClick={() => openInquiryModal('Millennium Interactive Board', 'Hardware')} className="mt-auto text-xs font-bold text-cyan-400 hover:text-white text-left transition-colors">Inquire →</button>
+                {/* Elevated Flagship Cards */}
+                <div className="grid lg:grid-cols-2 gap-6 flex-shrink-0">
+                  <div className="bg-gradient-to-br from-[#13172e]/80 to-[#090b14]/80 border border-cyan-800/50 rounded-2xl p-6 shadow-lg flex flex-col group hover:border-cyan-500/50 transition-all backdrop-blur-sm">
+                    <div className="flex justify-between items-start mb-5">
+                      <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 text-2xl border border-cyan-500/20 shadow-inner">🖥️</div>
+                      <span className="px-3 py-1 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-cyan-500/30">Flagship</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Millennium Interactive Board</h4>
+                    <p className="text-sm text-indigo-200/80 mb-6 flex-grow leading-relaxed">4K Ultra HD touch panel with embedded OS and telepresence camera for modern meeting rooms.</p>
+                    <button onClick={() => openInquiryModal('Millennium Interactive Board', 'Hardware')} className="w-full py-2.5 bg-[#090b14] border border-indigo-700/50 text-cyan-400 text-xs font-bold rounded-xl hover:bg-cyan-900/40 hover:border-cyan-500/50 transition-colors shadow-sm">
+                      Request Spec Sheet
+                    </button>
                   </div>
-                  <div className="bg-[#090b14]/60 border border-emerald-800/50 rounded-xl p-4 flex flex-col">
-                    <h4 className="text-sm font-bold text-white mb-2">THEHCO Tech Device</h4>
-                    <p className="text-xs text-indigo-200/80 mb-4">Heat exchanger for internal combustion engines. Reduces emissions up to 90%.</p>
-                    <button onClick={() => openInquiryModal('THEHCO Tech Device', 'Hardware')} className="mt-auto text-xs font-bold text-emerald-400 hover:text-white text-left transition-colors">Inquire →</button>
+
+                  <div className="bg-gradient-to-br from-[#13172e]/80 to-[#090b14]/80 border border-emerald-800/50 rounded-2xl p-6 shadow-lg flex flex-col group hover:border-emerald-500/50 transition-all backdrop-blur-sm">
+                    <div className="flex justify-between items-start mb-5">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-2xl border border-emerald-500/20 shadow-inner">⚙️</div>
+                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-full border border-emerald-500/30">Innovation</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">THEHCO Tech Device</h4>
+                    <p className="text-sm text-indigo-200/80 mb-6 flex-grow leading-relaxed">Heat exchanger for internal combustion engines. Reduces fuel consumption and carbon emissions up to 90%.</p>
+                    <button onClick={() => openInquiryModal('THEHCO Tech Device', 'Hardware')} className="w-full py-2.5 bg-[#090b14] border border-indigo-700/50 text-emerald-400 text-xs font-bold rounded-xl hover:bg-emerald-900/40 hover:border-emerald-500/50 transition-colors shadow-sm">
+                      Inquire for Fleet
+                    </button>
                   </div>
                 </div>
 
-                <div className="bg-[#090b14]/40 border border-indigo-800/30 rounded-xl p-5 flex-grow overflow-y-auto connector-scrollbar">
-                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4">Full Hardware Catalog</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {hardwareProducts.map((prod, idx) => (
-                      <span key={idx} onClick={() => openInquiryModal(prod, 'Hardware')} className="bg-[#13172e] border border-indigo-700/50 text-indigo-300 hover:text-white hover:border-cyan-500/50 text-[10px] px-3 py-1.5 rounded-full cursor-pointer transition-colors">
-                        {prod}
-                      </span>
-                    ))}
+                {/* Structured Catalog Grid with Live Search */}
+                <div className="bg-[#0b0e1b]/80 backdrop-blur-md border border-indigo-800/40 rounded-2xl flex flex-col flex-grow overflow-hidden shadow-2xl relative">
+                  <div className="px-6 py-4 border-b border-indigo-800/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#13172e]/40 sticky top-0">
+                    <h4 className="text-xs font-bold text-indigo-200 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                      Enterprise Catalog
+                    </h4>
+                    <div className="relative w-full sm:w-64">
+                      <svg className="absolute left-3 top-2 w-4 h-4 text-indigo-500/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                      <input
+                        type="text"
+                        placeholder="Search infrastructure..."
+                        value={hardwareSearch}
+                        onChange={(e) => setHardwareSearch(e.target.value)}
+                        className="w-full bg-[#090b14]/80 border border-indigo-700/50 rounded-lg pl-9 pr-4 py-1.5 text-sm text-white placeholder-indigo-500/60 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 overflow-y-auto connector-scrollbar flex-grow">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {hardwareProducts
+                        .filter(prod => prod.toLowerCase().includes(hardwareSearch.toLowerCase()))
+                        .map((prod, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => openInquiryModal(prod, 'Hardware')}
+                          className="flex items-center justify-between p-4 bg-[#13172e]/40 border border-indigo-800/30 rounded-xl hover:border-cyan-500/50 hover:bg-[#13172e]/80 cursor-pointer transition-all duration-300 group"
+                        >
+                          <span className="text-sm font-semibold text-indigo-100 group-hover:text-cyan-300 transition-colors truncate pr-3">{prod}</span>
+                          <span className="text-indigo-600 group-hover:text-cyan-400 font-bold transition-transform group-hover:translate-x-1">→</span>
+                        </div>
+                      ))}
+                      {hardwareProducts.filter(prod => prod.toLowerCase().includes(hardwareSearch.toLowerCase())).length === 0 && (
+                        <div className="col-span-full text-center py-10 text-indigo-400/60 text-sm font-medium">
+                          No hardware matches your search criteria.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -910,28 +1006,59 @@ export default function UserDashboard() {
 
             {/* SUBSIDIARY BRANDS TAB */}
             {activeModule === 'brands' && (
-              <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
-                <div className="border-b border-indigo-800/50 pb-4">
-                  <h3 className="text-xl font-bold text-white mb-1">Our Brands Network</h3>
-                  <p className="text-xs text-indigo-300/80">Connect with the wider Brains B2B and B2C marketplace ecosystem.</p>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto connector-scrollbar pr-2 pb-6">
-                  {subsidiaryBrands.map((brand, idx) => (
-                    <div key={idx} className="bg-[#090b14]/60 border border-fuchsia-900/30 rounded-xl p-4 hover:border-fuchsia-500/50 transition-all shadow-md text-center flex flex-col items-center cursor-pointer group">
-                      {brand.image ? (
-                        <div className="h-10 flex items-center justify-center mb-3">
-                          <img src={brand.image} alt={brand.name} className="max-h-full max-w-full object-contain grayscale group-hover:grayscale-0 transition-all duration-300" />
-                        </div>
-                      ) : (
-                        <div className="text-2xl mb-2">{brand.icon}</div>
-                      )}
-                      <h4 className="text-xs font-bold text-white mb-1">{brand.name}</h4>
-                      <p className="text-[9px] text-indigo-300/60 leading-tight">{brand.desc}</p>
+              selectedBrandId ? (
+                <BrandProfileModule 
+                  brandId={selectedBrandId} 
+                  onBack={() => setSelectedBrandId(null)} 
+                  openInquiryModal={openInquiryModal} 
+                />
+              ) : (
+                <div className="h-full flex flex-col gap-6 w-full animate-fadeIn font-sans">
+                  <div className="border-b border-indigo-800/50 pb-5 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                    <div>
+                      <h3 className="text-2xl font-black text-white tracking-tight mb-1">Our Brands Network</h3>
+                      <p className="text-sm text-indigo-300/80">Connect with the wider Brains B2B and B2C marketplace ecosystem.</p>
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto connector-scrollbar pr-2 pb-6 flex-grow">
+                    {subsidiaryBrands.map((brand, idx) => (
+                      <div 
+                        key={idx} 
+                        className="bg-gradient-to-br from-[#13172e]/80 to-[#090b14]/80 backdrop-blur-sm border border-fuchsia-900/30 rounded-2xl p-6 lg:p-8 hover:border-fuchsia-500/60 hover:shadow-[0_0_30px_rgba(217,70,239,0.15)] hover:-translate-y-1 transition-all duration-300 flex flex-col group"
+                      >
+                        <div className="h-28 w-full flex items-center justify-center mb-6 bg-[#090b14]/60 rounded-xl border border-indigo-800/40 p-4 group-hover:border-fuchsia-500/40 transition-colors shadow-inner">
+                          {brand.image ? (
+                            <img 
+                              src={brand.image} 
+                              alt={brand.name} 
+                              className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-110 drop-shadow-md" 
+                            />
+                          ) : (
+                            <div className="text-6xl drop-shadow-lg">{brand.icon}</div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-grow flex flex-col text-center">
+                          <h4 className="text-xl font-bold text-white mb-3 group-hover:text-fuchsia-300 transition-colors">
+                            {brand.name}
+                          </h4>
+                          <p className="text-sm text-indigo-200/80 leading-relaxed mb-8 flex-grow">
+                            {brand.desc}
+                          </p>
+                          
+                          <button 
+                            onClick={() => setSelectedBrandId(brand.id)}
+                            className="w-full bg-[#090b14] border border-indigo-700 hover:border-fuchsia-500 text-indigo-300 hover:text-white text-sm font-bold py-3.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 group-hover:bg-fuchsia-600/20 active:scale-95"
+                          >
+                            Explore Platform <span className="text-fuchsia-500 group-hover:text-fuchsia-400 font-black">→</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )
             )}
 
             {/* SUBSCRIPTION MODULE */}

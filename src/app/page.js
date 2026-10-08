@@ -191,21 +191,45 @@ const VideoModal = ({ onClose }) => {
   );
 };
 
-// --- GENERIC INQUIRY MODAL (Services & Hardware) ---
+// --- UPDATED GENERIC INQUIRY MODAL (Services & Hardware) ---
 const InquiryModal = ({ subject, type, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      onClose();
-    }, 2500);
+    setLoading(true);
+
+    const formData = {
+      type: type, // 'Hardware' or 'Agency Service'
+      subject: subject,
+      name: e.target.fullName.value,
+      email: e.target.email.value,
+      company: '', 
+      details: e.target.details.value
+    };
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => onClose(), 2500);
+      }
+    } catch (error) {
+      console.error("Submission failed", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const accentColor = type === 'Hardware' ? 'cyan' : 'blue';
@@ -234,18 +258,18 @@ const InquiryModal = ({ subject, type, onClose }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
-                <input type="text" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="John Doe" />
+                <input name="fullName" type="text" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="John Doe" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Email</label>
-                <input type="email" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="john@company.com" />
+                <input name="email" type="email" required className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="john@company.com" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Additional Details (Optional)</label>
-                <textarea rows="3" className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="Tell us more about your needs..."></textarea>
+                <textarea name="details" rows="3" className={`w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-${accentColor}-500/50 focus:ring-1 focus:ring-${accentColor}-500/50 transition-colors`} placeholder="Tell us more about your needs..."></textarea>
               </div>
-              <button type="submit" className={`w-full bg-gradient-to-r from-${accentColor}-600 to-indigo-600 hover:from-${accentColor}-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all`}>
-                Submit Inquiry
+              <button disabled={loading} type="submit" className={`w-full bg-gradient-to-r from-${accentColor}-600 to-indigo-600 hover:from-${accentColor}-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all disabled:opacity-50`}>
+                {loading ? 'Submitting...' : 'Submit Inquiry'}
               </button>
             </form>
           </div>
@@ -255,21 +279,131 @@ const InquiryModal = ({ subject, type, onClose }) => {
   );
 };
 
-// --- CONSULTATION CONTACT MODAL ---
-const ConsultationModal = ({ onClose }) => {
+// --- UPDATED CONNECTOR TRIAL MODAL COMPONENT ---
+const ConnectorTrialModal = ({ systemName, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      onClose();
-    }, 2500);
+    setLoading(true);
+
+    const formData = {
+      type: 'Connector Trial',
+      subject: systemName,
+      name: e.target.fullName.value,
+      email: e.target.email.value,
+      company: e.target.companyName.value,
+      details: 'Automated request for 14-day connector module trial.'
+    };
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => onClose(), 2500);
+      }
+    } catch (error) {
+      console.error("Submission failed", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={onClose}></div>
+      <div className="relative w-full max-w-md bg-[#13172e] border border-blue-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(59,130,246,0.15)] z-10 transition-all duration-300">
+        <button onClick={onClose} className="absolute top-4 right-4 text-indigo-400 hover:text-violet-400 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        
+        {submitted ? (
+          <div className="text-center py-8 animate-fadeIn">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 border border-emerald-500/50 text-emerald-400 text-3xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">✓</div>
+            <h3 className="text-xl font-bold text-white mb-2">Request Sent!</h3>
+            <p className="text-sm text-indigo-200">Our team will contact you shortly to set up your {systemName} trial environment.</p>
+          </div>
+        ) : (
+          <div className="animate-fadeIn">
+            <h3 className="text-2xl font-bold text-white mb-2">Request Free Trial</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">Get 14-days free access to the <span className="text-blue-400 font-bold">{systemName}</span> module.</p>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
+                <input name="fullName" type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="John Doe" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Email</label>
+                <input name="email" type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="john@company.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Name</label>
+                <input name="companyName" type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="Acme Corp" />
+              </div>
+              <button disabled={loading} type="submit" className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all disabled:opacity-50">
+                {loading ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- UPDATED CONSULTATION CONTACT MODAL ---
+const ConsultationModal = ({ onClose }) => {
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = {
+      type: 'Consultation',
+      subject: 'General Enterprise Consultation',
+      name: e.target.fullName.value,
+      email: e.target.email.value,
+      company: e.target.contactNum.value, // Reusing company slot for phone number
+      details: e.target.message.value
+    };
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => onClose(), 2500);
+      }
+    } catch (error) {
+      console.error("Submission failed", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -296,22 +430,22 @@ const ConsultationModal = ({ onClose }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
-                <input type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="John Doe" />
+                <input name="fullName" type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="John Doe" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Email Address</label>
-                <input type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="john@company.com" />
+                <input name="email" type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="john@company.com" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Contact Number</label>
-                <input type="tel" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="+63 900 000 0000" />
+                <input name="contactNum" type="tel" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="+63 900 000 0000" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Message</label>
-                <textarea required rows="3" className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="How can we help your business expand?"></textarea>
+                <textarea name="message" required rows="3" className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors" placeholder="How can we help your business expand?"></textarea>
               </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(217,70,239,0.25)] active:scale-95 transition-all">
-                Send Request
+              <button disabled={loading} type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(217,70,239,0.25)] active:scale-95 transition-all disabled:opacity-50">
+                {loading ? 'Sending...' : 'Send Request'}
               </button>
             </form>
           </div>
@@ -698,67 +832,7 @@ const ModuleSection = ({ data }) => (
   </section>
 );
 
-// --- CONNECTOR TRIAL MODAL COMPONENT ---
-const ConnectorTrialModal = ({ systemName, onClose }) => {
-  const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'unset'; };
-  }, []);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      onClose();
-    }, 2500);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={onClose}></div>
-      <div className="relative w-full max-w-md bg-[#13172e] border border-blue-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(59,130,246,0.15)] z-10 transition-all duration-300">
-        <button onClick={onClose} className="absolute top-4 right-4 text-indigo-400 hover:text-violet-400 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        
-        {submitted ? (
-          <div className="text-center py-8 animate-fadeIn">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 border border-emerald-500/50 text-emerald-400 text-3xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">✓</div>
-            <h3 className="text-xl font-bold text-white mb-2">Request Sent!</h3>
-            <p className="text-sm text-indigo-200">Our team will contact you shortly to set up your {systemName} trial environment.</p>
-          </div>
-        ) : (
-          <div className="animate-fadeIn">
-            <h3 className="text-2xl font-bold text-white mb-2">Request Free Trial</h3>
-            <p className="text-sm text-indigo-300/80 mb-6">Get 14-days free access to the <span className="text-blue-400 font-bold">{systemName}</span> module.</p>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Full Name</label>
-                <input type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="John Doe" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Email</label>
-                <input type="email" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="john@company.com" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Company Name</label>
-                <input type="text" required className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-colors" placeholder="Acme Corp" />
-              </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3 px-4 rounded-lg mt-6 shadow-[0_4px_14px_rgba(59,130,246,0.25)] active:scale-95 transition-all">
-                Submit Request
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // --- INTERACTIVE CONNECTOR SHOWCASE WIDGET ---
 const ConnectorShowcase = () => {

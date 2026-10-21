@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import { Radio, Thermostat, Lock, Droplets, Video, Zap } from 'lucide-react';
 
 export function IoTModule() {
   const [devices, setDevices] = useState([
@@ -36,7 +37,9 @@ export function IoTModule() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-indigo-800/30 pb-5">
         <div>
           <h3 className="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
-            <span className="p-2 bg-indigo-900/40 rounded-xl border border-indigo-700/50 shadow-inner text-2xl">📡</span> 
+            <div className="p-2 bg-indigo-900/40 rounded-xl border border-indigo-700/50 shadow-inner text-blue-400">
+              <Radio className="w-6 h-6" strokeWidth={1.5} />
+            </div> 
             Housekeeper <span className="text-indigo-400 font-medium">(IoT)</span>
           </h3>
           <p className="text-sm text-indigo-300/70 mt-1.5 font-medium">Smart locks, sub-meters, environmental sensors, and telemetry gateways</p>

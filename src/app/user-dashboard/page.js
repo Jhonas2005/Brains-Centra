@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient'; 
 
 import { 
@@ -8,7 +9,7 @@ import {
   Cpu, Radio, CreditCard, Users, PieChart, Handshake, 
   TrendingUp, ShoppingCart, Package, Wallet, Truck, 
   Navigation, KanbanSquare, Briefcase, MonitorSmartphone, ShoppingBag,
-  Facebook, Instagram, AlertTriangle, LogOut, Settings, User, Lock, Bell
+  Facebook, Instagram, AlertTriangle, LogOut, Settings, User, Lock, Bell, Shield, Monitor, Smartphone, Trash2
 } from 'lucide-react';
 
 import { MyRequestsModule } from '@/components/modules/MyRequestsModule';
@@ -128,6 +129,7 @@ const ParticleBackground = () => {
 };
 
 // --- EXPANDED MODULES & ECOSYSTEM DATA ---
+// NOTE: "account-settings" is intentionally removed from here so it doesn't show in the sidebar
 const ALL_MODULES = [
   { id: "overview", category: "Dashboard", label: "Command Overview", shortName: "HOME", icon: <Globe className="w-6 h-6 text-fuchsia-400" strokeWidth={1.5} /> },
   { id: "my-requests", category: "Dashboard", label: "My Inquiries & Requests", shortName: "REQ", icon: <LayoutList className="w-6 h-6 text-indigo-300" strokeWidth={1.5} /> },
@@ -157,8 +159,7 @@ const ALL_MODULES = [
   { id: "brands", category: "Brains Ecosystem", label: "Our Brands", shortName: "BRANDS", icon: <ShoppingBag className="w-6 h-6 text-fuchsia-400" strokeWidth={1.5} /> },
 
   // Settings
-  { id: "subscription", category: "Settings", label: "Billing & Subscription", shortName: "SUBS", icon: <CreditCard className="w-6 h-6 text-indigo-300" strokeWidth={1.5} /> },
-  { id: "account-settings", category: "Settings", label: "Account Settings", shortName: "ACCOUNT", icon: <Settings className="w-6 h-6 text-indigo-300" strokeWidth={1.5} /> }
+  { id: "subscription", category: "Settings", label: "Billing & Subscription", shortName: "SUBS", icon: <CreditCard className="w-6 h-6 text-indigo-300" strokeWidth={1.5} /> }
 ];
 
 const agencyServices = [
@@ -298,6 +299,7 @@ const InquiryModal = ({ subject, type, user, onClose }) => {
 };
 
 export default function UserDashboard() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [billingData, setBillingData] = useState({ payment_methods: [], invoices: [] });
@@ -324,6 +326,14 @@ export default function UserDashboard() {
   const [profileForm, setProfileForm] = useState({ first_name: '', last_name: '', company: '' });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [emailAlerts, setEmailAlerts] = useState(true);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Active Sessions Dummy Data
+  const activeSessions = [
+    { id: 1, device: "MacBook Pro - Chrome", ip: "192.168.1.4", location: "Quezon City, PH", current: true, icon: <Monitor className="w-4 h-4" /> },
+    { id: 2, device: "iPhone 13 - Safari", ip: "112.198.77.2", location: "Manila, PH", current: false, icon: <Smartphone className="w-4 h-4" /> }
+  ];
 
   // Ecosystem Inquiry Modal
   const [inquiryModal, setInquiryModal] = useState({ isOpen: false, subject: "", type: "" });
@@ -351,7 +361,7 @@ export default function UserDashboard() {
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
       if (authError || !authData?.user) {
-        window.location.href = '/';
+        router.replace('/');
         return;
       }
 
@@ -398,8 +408,13 @@ export default function UserDashboard() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      window.location.assign("/"); 
+    }
   };
 
   const handleUpgradeSubmit = async () => {
@@ -514,14 +529,23 @@ export default function UserDashboard() {
     }
   };
 
-  const handlePasswordReset = async () => {
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      showNotification("Password must be at least 6 characters.", "error");
+      return;
+    }
+    setIsUpdatingPassword(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(userData.email);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      showNotification("Password reset email sent! Check your inbox.", "success");
+      setNewPassword('');
+      showNotification("Password successfully updated.", "success");
     } catch (error) {
-      console.error("Password reset error:", error);
-      showNotification("Failed to send reset email.", "error");
+      console.error("Password update error:", error);
+      showNotification("Failed to update password.", "error");
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -580,7 +604,7 @@ export default function UserDashboard() {
                   {category}
                 </div>
                 {categoryModules.map((module) => {
-                  const isAlwaysAccessible = ['overview', 'my-requests', 'subscription', 'account-settings', 'services', 'brands', 'hardware'].includes(module.id);
+                  const isAlwaysAccessible = ['overview', 'my-requests', 'subscription', 'services', 'brands', 'hardware'].includes(module.id);
                   const isSubscribed = userData?.subscribed_modules?.includes(module.id);
                   
                   // Security Locking Logic
@@ -642,9 +666,18 @@ export default function UserDashboard() {
             <h1 className="text-lg md:text-2xl font-bold text-white tracking-wide">Welcome, {userData?.first_name}</h1>
             <p className="text-[10px] md:text-xs text-indigo-400 font-mono hidden sm:block">{userData?.company || 'Independent'} • Operator Workspace</p>
           </div>
-          <button onClick={() => setShowLogoutConfirm(true)} className="px-4 py-2 bg-[#13172e]/80 text-indigo-200 text-xs md:text-sm font-semibold rounded-lg border border-indigo-700/50 hover:bg-[#1a1f3c]/80 transition-colors flex items-center gap-2">
-            <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setActiveModule('account-settings')} 
+              className={`p-2 rounded-lg transition-colors ${activeModule === 'account-settings' ? 'bg-fuchsia-900/40 text-fuchsia-400 border border-fuchsia-500/50' : 'bg-[#13172e]/80 text-indigo-300 border border-indigo-700/50 hover:bg-[#1a1f3c]/80'}`}
+              title="Account Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button onClick={() => setShowLogoutConfirm(true)} className="px-4 py-2 bg-[#13172e]/80 text-indigo-200 text-xs md:text-sm font-semibold rounded-lg border border-indigo-700/50 hover:bg-[#1a1f3c]/80 transition-colors flex items-center gap-2">
+              <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </header>
 
         {/* Content Wrapper */}
@@ -652,7 +685,7 @@ export default function UserDashboard() {
           <div className="max-w-[1600px] mx-auto h-full flex flex-col">
             
             {/* Maintenance Intercept */}
-            {maintenanceMode && ['Core Facilities', 'Connector Systems'].includes(ALL_MODULES.find(m => m.id === activeModule)?.category) ? (
+            {maintenanceMode && activeModule !== 'account-settings' && ['Core Facilities', 'Connector Systems'].includes(ALL_MODULES.find(m => m.id === activeModule)?.category) ? (
               <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn bg-[#13172e]/50 border border-indigo-800/30 rounded-2xl p-8 shadow-xl">
                 <div className="w-24 h-24 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
                   <AlertTriangle className="w-10 h-10 text-amber-400 animate-pulse" strokeWidth={1.5} />
@@ -799,6 +832,175 @@ export default function UserDashboard() {
                   </div>
                 )}
 
+                {/* ACCOUNT SETTINGS MODULE */}
+                {activeModule === 'account-settings' && (
+                  <div className="h-full flex flex-col gap-6 w-full animate-fadeIn overflow-y-auto connector-scrollbar pr-2 pb-10">
+                    <div className="flex flex-col border-b border-indigo-800/50 pb-4 w-full shrink-0">
+                      <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><Settings className="w-6 h-6 text-indigo-300"/> Account Settings</h3>
+                      <p className="text-[10px] md:text-sm text-indigo-300/60 mt-1">Manage your profile, security preferences, and account details.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                      {/* Left Column */}
+                      <div className="space-y-6">
+                        {/* Profile Settings */}
+                        <form onSubmit={handleUpdateProfile} className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg flex flex-col">
+                          <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><User className="w-4 h-4"/> Personal Profile</h4>
+                          
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">First Name</label>
+                                <input 
+                                  value={profileForm.first_name} 
+                                  onChange={(e) => setProfileForm({...profileForm, first_name: e.target.value})} 
+                                  className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Last Name</label>
+                                <input 
+                                  value={profileForm.last_name} 
+                                  onChange={(e) => setProfileForm({...profileForm, last_name: e.target.value})} 
+                                  className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Company Name</label>
+                              <input 
+                                value={profileForm.company} 
+                                onChange={(e) => setProfileForm({...profileForm, company: e.target.value})} 
+                                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Email Address</label>
+                              <input 
+                                value={userData?.email || ''} 
+                                disabled
+                                className="w-full bg-[#060810]/50 border border-indigo-800/80 rounded-lg px-4 py-2.5 text-sm text-indigo-400/80 cursor-not-allowed" 
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-8 pt-4 border-t border-indigo-800/30 flex justify-end">
+                            <button disabled={isSavingProfile} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-2.5 px-6 rounded-lg transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                              {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                            </button>
+                          </div>
+                        </form>
+
+                        {/* Preferences */}
+                        <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg">
+                          <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Bell className="w-4 h-4"/> Global Preferences</h4>
+                          
+                          <label className="flex items-start gap-3 p-4 bg-[#090b14]/50 border border-indigo-800/30 rounded-xl cursor-pointer hover:border-indigo-600/50 transition-colors">
+                            <input 
+                              type="checkbox" 
+                              checked={emailAlerts} 
+                              onChange={() => setEmailAlerts(!emailAlerts)}
+                              className="mt-1 w-4 h-4 accent-indigo-500" 
+                            />
+                            <div>
+                              <span className="text-sm font-bold text-white block">Email Notifications</span>
+                              <span className="text-xs text-indigo-400 block mt-1 leading-relaxed">Receive updates about module renewals, maintenance, and platform announcements.</span>
+                            </div>
+                          </label>
+
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div>
+                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Timezone</label>
+                              <select className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-indigo-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="Asia/Manila">Asia/Manila (PHT)</option>
+                                <option value="America/New_York">America/New_York (EST)</option>
+                                <option value="Europe/London">Europe/London (GMT)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Currency Format</label>
+                              <select className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-indigo-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="PHP">Philippine Peso (PHP)</option>
+                                <option value="USD">US Dollar (USD)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column */}
+                      <div className="space-y-6">
+                        {/* Direct Password Update */}
+                        <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg">
+                          <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield className="w-4 h-4"/> Update Password</h4>
+                          <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                            <div>
+                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">New Password</label>
+                              <input 
+                                type="password"
+                                required
+                                minLength={6}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
+                                placeholder="••••••••"
+                              />
+                            </div>
+                            <button 
+                              type="submit" 
+                              disabled={isUpdatingPassword}
+                              className="w-full bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/50 text-indigo-200 hover:text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                            >
+                              {isUpdatingPassword ? 'Updating...' : 'Update Password Securely'}
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* Active Sessions */}
+                        <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg flex flex-col h-[280px]">
+                          <div className="flex justify-between items-center mb-6">
+                            <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest flex items-center gap-2"><Globe className="w-4 h-4"/> Active Sessions</h4>
+                            <span className="text-[10px] font-mono text-indigo-400 bg-[#090b14] px-2 py-1 rounded border border-indigo-800/50">LIVE</span>
+                          </div>
+                          
+                          <div className="flex-1 overflow-y-auto space-y-3 connector-scrollbar pr-2">
+                            {activeSessions.map((session) => (
+                              <div key={session.id} className="flex justify-between items-center p-3 bg-[#090b14]/50 border border-indigo-800/30 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                  <div className="p-2 bg-[#13172e] rounded-lg text-indigo-400">{session.icon}</div>
+                                  <div>
+                                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                                      {session.device} 
+                                      {session.current && <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider border border-emerald-500/30">Current</span>}
+                                    </p>
+                                    <p className="text-xs text-indigo-400/80 font-mono mt-0.5">{session.ip} • {session.location}</p>
+                                  </div>
+                                </div>
+                                {!session.current && (
+                                  <button className="text-xs font-bold text-red-400 hover:text-red-300 px-3 py-1.5 bg-red-900/20 border border-red-900/50 rounded-lg transition-colors">Revoke</button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* GDPR Danger Zone */}
+                        <div className="bg-red-900/10 border border-red-900/30 rounded-xl p-6 shadow-lg relative overflow-hidden group hover:border-red-900/50 transition-colors">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] pointer-events-none group-hover:bg-red-500/10 transition-colors"></div>
+                          <div className="relative z-10">
+                            <h4 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Trash2 className="w-4 h-4"/> Danger Zone</h4>
+                            <p className="text-xs text-red-200/60 leading-relaxed mb-4">Permanently delete your account, wipe all associated data, and cancel all active subscriptions. This action cannot be undone.</p>
+                            <button className="bg-[#090b14] border border-red-900/50 hover:bg-red-900/30 text-red-400 hover:text-red-300 text-xs font-bold py-2 px-4 rounded-lg transition-colors shadow-sm">
+                              Initiate Account Deletion
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* MY REQUESTS */}
                 {activeModule === 'my-requests' && <MyRequestsModule userEmail={userData?.email} />}
 
@@ -913,94 +1115,6 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                {/* ACCOUNT SETTINGS MODULE */}
-                {activeModule === 'account-settings' && (
-                  <div className="h-full flex flex-col gap-6 w-full animate-fadeIn">
-                    <div className="flex flex-col border-b border-indigo-800/50 pb-4 w-full">
-                      <h3 className="text-base md:text-xl font-bold text-white flex items-center gap-2"><Settings className="w-6 h-6 text-indigo-300"/> Account Settings</h3>
-                      <p className="text-[10px] md:text-sm text-indigo-300/60 mt-1">Manage your profile, security preferences, and account details.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-                      {/* Profile Settings */}
-                      <form onSubmit={handleUpdateProfile} className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg flex flex-col h-fit">
-                        <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><User className="w-4 h-4"/> Personal Profile</h4>
-                        
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">First Name</label>
-                              <input 
-                                value={profileForm.first_name} 
-                                onChange={(e) => setProfileForm({...profileForm, first_name: e.target.value})} 
-                                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Last Name</label>
-                              <input 
-                                value={profileForm.last_name} 
-                                onChange={(e) => setProfileForm({...profileForm, last_name: e.target.value})} 
-                                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Company Name</label>
-                            <input 
-                              value={profileForm.company} 
-                              onChange={(e) => setProfileForm({...profileForm, company: e.target.value})} 
-                              className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Email Address</label>
-                            <input 
-                              value={userData?.email || ''} 
-                              disabled
-                              className="w-full bg-[#060810]/50 border border-indigo-800/80 rounded-lg px-4 py-2.5 text-sm text-indigo-400/80 cursor-not-allowed" 
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-8 pt-4 border-t border-indigo-800/30 flex justify-end">
-                          <button disabled={isSavingProfile} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-2.5 px-6 rounded-lg transition-colors disabled:opacity-50">
-                            {isSavingProfile ? 'Saving...' : 'Save Changes'}
-                          </button>
-                        </div>
-                      </form>
-
-                      {/* Security & Preferences */}
-                      <div className="space-y-6">
-                        <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg">
-                          <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Lock className="w-4 h-4"/> Security</h4>
-                          <p className="text-sm text-indigo-200/80 mb-4">Request a secure magic link to be sent to your email to update your account password.</p>
-                          <button onClick={handlePasswordReset} className="w-full bg-[#090b14] border border-indigo-700 hover:border-indigo-500 text-indigo-200 hover:text-white text-sm font-bold py-2.5 rounded-lg transition-colors">
-                            Request Password Reset
-                          </button>
-                        </div>
-
-                        <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg">
-                          <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Bell className="w-4 h-4"/> Preferences</h4>
-                          
-                          <label className="flex items-start gap-3 p-3 bg-[#090b14]/50 border border-indigo-800/30 rounded-xl cursor-pointer hover:border-indigo-600/50 transition-colors">
-                            <input 
-                              type="checkbox" 
-                              checked={emailAlerts} 
-                              onChange={() => setEmailAlerts(!emailAlerts)}
-                              className="mt-1 w-4 h-4 accent-indigo-500" 
-                            />
-                            <div>
-                              <span className="text-sm font-bold text-white block">Email Notifications</span>
-                              <span className="text-xs text-indigo-400 block mt-1 leading-relaxed">Receive updates about module renewals, maintenance, and platform announcements.</span>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* SUBSCRIPTION MODULE */}
                 {activeModule === 'subscription' && (
                   <div className="h-full flex flex-col gap-4 md:gap-6 w-full animate-fadeIn">
@@ -1078,6 +1192,187 @@ export default function UserDashboard() {
           </div>
         </div>
       </main>
+
+      {/* --- ALL MODALS --- */}
+      {/* Inquiry Modal */}
+      {inquiryModal.isOpen && (
+        <InquiryModal 
+          subject={inquiryModal.subject} 
+          type={inquiryModal.type} 
+          user={userData} 
+          onClose={() => setInquiryModal({ isOpen: false, subject: "", type: "" })} 
+        />
+      )}
+
+      {/* Printable Receipt Modal */}
+      {selectedReceipt && (
+        <>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #receipt-modal, #receipt-modal * { visibility: visible; }
+              #receipt-modal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 40px; box-shadow: none !important; background: white !important; color: black !important; }
+              .print-hide { display: none !important; }
+            }
+          `}</style>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#090b14]/90 backdrop-blur-sm print-hide" onClick={() => setSelectedReceipt(null)}></div>
+            <div id="receipt-modal" className="relative w-full max-w-lg bg-white text-gray-900 rounded-2xl p-8 z-10 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-black text-indigo-950 tracking-tight">BRAINS CENTRAL COMMAND</h2>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-1">Official Receipt</p>
+              </div>
+              <div className="flex justify-between text-sm mb-8">
+                <div>
+                  <p className="text-gray-500 text-xs uppercase font-bold mb-1">Billed To</p>
+                  <p className="font-bold">{userData?.first_name} {userData?.last_name}</p>
+                  <p className="text-gray-600">{userData?.company || 'Independent Operator'}</p>
+                  <p className="text-gray-600">{userData?.email}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-500 text-xs uppercase font-bold mb-1">Invoice Details</p>
+                  <p><span className="font-semibold text-gray-600">Receipt #:</span> INV-{selectedReceipt.id.substring(0, 8).toUpperCase()}</p>
+                  <p><span className="font-semibold text-gray-600">Date:</span> {new Date(selectedReceipt.created_at).toLocaleDateString()}</p>
+                  <p><span className="font-semibold text-gray-600">Time:</span> {new Date(selectedReceipt.created_at).toLocaleTimeString()}</p>
+                </div>
+              </div>
+              <div className="border-t-2 border-b-2 border-gray-100 py-4 mb-6">
+                <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  <span>Description</span>
+                  <span>Amount</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold text-gray-800">
+                  <span className="pr-4 leading-relaxed">{selectedReceipt.description}</span>
+                  <span>{formatPHP(selectedReceipt.amount)}</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center mb-8">
+                <span className="text-lg font-bold text-gray-800">Total Paid</span>
+                <span className="text-2xl font-black text-indigo-900">{formatPHP(selectedReceipt.amount)}</span>
+              </div>
+              <div className="text-center text-xs text-gray-500 mb-8">
+                <p className="font-bold mb-1">Status: <span className="text-emerald-600">{selectedReceipt.status.toUpperCase()}</span></p>
+                <p>Thank you for subscribing to Brains Central Command.</p>
+                <p>Keep this receipt for your records.</p>
+              </div>
+              <div className="flex gap-4 print-hide">
+                <button onClick={() => window.print()} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                  Print / Save PDF
+                </button>
+                <button onClick={() => setSelectedReceipt(null)} className="flex-1 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Notification Modal */}
+      {notification.show && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setNotification({ ...notification, show: false })}></div>
+          <div className={`relative w-full max-w-sm bg-[#13172e] border rounded-2xl p-6 md:p-8 shadow-2xl z-10 text-center ${notification.type === 'error' ? 'border-red-500/50' : 'border-emerald-500/50'}`}>
+            <h3 className="text-xl font-bold text-white mb-2">{notification.type === 'error' ? 'Action Failed' : 'Success'}</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">{notification.message}</p>
+            <button onClick={() => setNotification({ ...notification, show: false })} className="w-full bg-[#090b14] border border-indigo-700 text-white font-bold py-3 rounded-lg">Okay</button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setShowCancelModal(false)}></div>
+          <div className="relative w-full max-w-sm bg-[#13172e] border border-red-500/50 rounded-2xl p-6 md:p-8 z-10 text-center">
+            <h3 className="text-xl font-bold text-white mb-2">Cancel {moduleToCancel === 'all' ? 'Subscription' : 'Module'}</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">Are you sure you want to cancel? You will lose access immediately.</p>
+            <div className="flex gap-4 justify-center">
+              <button onClick={handleCancelSubmit} disabled={cancelProcessing} className="flex-1 bg-red-600 text-white font-bold py-2 rounded-lg">Yes</button>
+              <button onClick={() => setShowCancelModal(false)} className="flex-1 bg-[#090b14] border border-indigo-700 text-indigo-200 font-bold py-2 rounded-lg">Go Back</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setShowUpgradeModal(false)}></div>
+          <div className="relative w-full max-w-md bg-[#13172e] border border-fuchsia-500/50 rounded-2xl p-6 md:p-8 z-10">
+            <h3 className="text-xl font-bold text-white mb-2">Upgrade Subscription</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">Select additional modules to add to your Command Center.</p>
+
+            <div className="space-y-3 mb-6 max-h-48 overflow-y-auto connector-scrollbar pr-2">
+              {availableModulesToBuy.length > 0 ? (
+                availableModulesToBuy.map(module => (
+                  <label key={module.id} className="flex items-center justify-between p-3 rounded-lg border border-indigo-800/50 bg-[#090b14]/50 cursor-pointer hover:border-fuchsia-500/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        value={module.id} 
+                        checked={selectedUpgradeModules.includes(module.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedUpgradeModules([...selectedUpgradeModules, module.id]);
+                          else setSelectedUpgradeModules(selectedUpgradeModules.filter(id => id !== module.id));
+                        }} 
+                        className="accent-fuchsia-500 w-4 h-4 rounded" 
+                      />
+                      <span className="text-xl">{module.icon}</span>
+                      <span className="text-sm font-semibold text-white">{module.label}</span>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-400">{formatPHP(module.price)}/mo</span>
+                  </label>
+                ))
+              ) : (
+                <div className="text-center py-4 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-lg bg-emerald-500/10">
+                  You have unlocked all available modules!
+                </div>
+              )}
+            </div>
+
+            <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-3">Payment Information</h4>
+            <div className="space-y-3 mb-8">
+              <input 
+                type="text" 
+                placeholder="Card Number (e.g., 4242 4242 4242 4242)" 
+                value={cardNumber}
+                maxLength={19}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/\D/g, '');
+                  const truncatedValue = rawValue.substring(0, 16);
+                  const formattedValue = truncatedValue.replace(/(\d{4})(?=\d)/g, '$1 ');
+                  setCardNumber(formattedValue);
+                }}
+                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-3 text-sm text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50" 
+              />
+            </div>
+
+            <div className="flex gap-4 items-center">
+              <button onClick={handleUpgradeSubmit} disabled={upgradeProcessing || selectedUpgradeModules.length === 0} className="flex-1 bg-gradient-to-r from-fuchsia-600 to-blue-600 text-white font-bold py-3 rounded-lg disabled:opacity-50">
+                {upgradeProcessing ? 'Processing...' : `Pay ${formatPHP(upgradeTotal)}`}
+              </button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 bg-[#090b14] border border-indigo-700 text-indigo-200 font-bold py-3 rounded-lg hover:bg-[#13172e]">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setShowLogoutConfirm(false)}></div>
+          <div className="relative w-full max-w-sm bg-[#13172e] border border-indigo-800/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(217,70,239,0.15)] z-10 text-center">
+            <h3 className="text-xl font-bold text-white mb-2">Confirm Sign Out</h3>
+            <p className="text-sm text-indigo-300/80 mb-6">Are you sure you want to log out of your workspace?</p>
+            <div className="flex gap-4 justify-center">
+              <button onClick={handleLogout} className="flex-1 bg-gradient-to-r from-fuchsia-600 to-blue-600 text-white font-bold py-2 rounded-lg hover:opacity-90">Yes</button>
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 bg-[#090b14] border border-indigo-700 text-indigo-200 font-bold py-2 rounded-lg hover:bg-[#13172e]">No</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

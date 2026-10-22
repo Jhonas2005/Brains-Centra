@@ -15,6 +15,7 @@ import {
 const SignInModal = ({ onClose }) => {
   const [view, setView] = useState("login");
   const [message, setMessage] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -66,24 +67,57 @@ const SignInModal = ({ onClose }) => {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    setMessage("Sending reset link...");
-    
-    const email = e.target.email.value;
+    setMessage("Sending secure reset code...");
+
+    const email = e.target.email.value.trim();
+    setResetEmail(email);
 
     try {
-      // Direct Supabase call to send the recovery email
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        // This is the page we will build in Step 2
-        redirectTo: `${window.location.origin}/update-password`,
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
 
-      if (error) throw error;
+      const data = await res.json();
 
-      setMessage("Success! Check your email for the reset link.");
-      e.target.reset(); 
+      if (!res.ok) {
+        setMessage(data.message || "Could not send the reset email. Please try again.");
+        return;
+      }
+
+      setMessage("");
+      setView("code");
     } catch (error) {
       console.error(error);
-      setMessage("Failed to send reset link. Please check the email and try again.");
+      setMessage("Connection error. Please try again.");
+    }
+  };
+
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+    setMessage("Verifying code...");
+
+    const code = e.target.code.value.replace(/\D/g, '');
+
+    try {
+      // Verifies the emailed code and opens a short-lived recovery session
+      const { error } = await supabase.auth.verifyOtp({
+        email: resetEmail,
+        token: code,
+        type: 'recovery',
+      });
+
+      if (error) {
+        setMessage("That code is invalid or has expired. Request a new one.");
+        return;
+      }
+
+      setMessage("Success! Redirecting...");
+      window.location.href = '/update-password';
+    } catch (error) {
+      console.error(error);
+      setMessage("Connection error. Please try again.");
     }
   };
 
@@ -106,10 +140,14 @@ const SignInModal = ({ onClose }) => {
         <div className="text-center mb-8">
           <img src="/brains-logo.png" alt="Brains Logo" className="h-10 w-auto mx-auto mb-4 object-contain" />
           <h2 className="text-2xl font-bold text-white mb-1">
-            {view === "login" ? "Welcome Back" : "Reset Password"}
+            {view === "login" && "Welcome Back"}
+            {view === "forgot" && "Reset Password"}
+            {view === "code" && "Enter Your Code"}
           </h2>
           <p className="text-sm text-indigo-300/80">
-            {view === "login" ? "Sign in to Central Command" : "Enter your email to receive a secure reset link"}
+            {view === "login" && "Sign in to Central Command"}
+            {view === "forgot" && "We'll email you a verification code and a secure link"}
+            {view === "code" && <>Sent to <span className="font-semibold text-white">{resetEmail}</span></>}
           </p>
         </div>
         
@@ -135,7 +173,7 @@ const SignInModal = ({ onClose }) => {
               Secure Sign In
             </button>
           </form>
-        ) : (
+        ) : view === "forgot" ? (
           <form className="space-y-4" onSubmit={handleResetPassword}>
             <div>
               <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Email Address</label>
@@ -149,6 +187,43 @@ const SignInModal = ({ onClose }) => {
             <div className="text-center mt-4 pt-2 border-t border-indigo-900/50">
               <button type="button" onClick={() => toggleView("login")} className="text-xs text-indigo-400 hover:text-white font-semibold transition-colors">
                 ← Back to Sign In
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form className="space-y-4" onSubmit={handleVerifyCode}>
+            <div>
+              <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Verification Code</label>
+              <input
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={10}
+                required
+                autoFocus
+                onChange={(e) => {
+                  // Chrome autofill can dump the email in here; keep digits only
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+                className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-center text-xl font-mono tracking-[0.3em] text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-2 transition-all duration-300 shadow-[0_4px_14px_rgba(217,70,239,0.25)] active:scale-95">
+              Verify &amp; Continue
+            </button>
+
+            <p className="text-[11px] text-indigo-400/80 text-center leading-relaxed">
+              You can also click the secure link in the email to skip this step.
+            </p>
+
+            <div className="text-center mt-2 pt-2 border-t border-indigo-900/50">
+              <button type="button" onClick={() => toggleView("forgot")} className="text-xs text-indigo-400 hover:text-white font-semibold transition-colors">
+                ← Use a different email
               </button>
             </div>
           </form>

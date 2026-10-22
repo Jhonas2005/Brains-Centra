@@ -23,7 +23,7 @@ Go to your Vercel project dashboard → Settings → Environment Variables and a
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://jomuqhnqwimnuwikvaig.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbXVxaG5xd2ltbnV3aWt2YWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MjY4NDksImV4cCI6MjEwNTEwMjg0OX0.2I4S9xJZx2TSIJ4yf4uxHKiC0klMoqWPPkcI63ADywk
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbXVxaG5xd2ltbnV3aWt2YWlnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTUyNjg0OSwiZXhwIjoyMTA1MTAyODQ5fQ.xx8Cfa-1zQ81c1AOxCEnUmEsreFg7Cd7LGfnMF8dkcg
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key-from-supabase-dashboard>
 ```
 
 ## Deployment Steps
@@ -47,7 +47,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
    - **Environments**: Select Production, Preview, and Development
    
    - **Name**: `SUPABASE_SERVICE_ROLE_KEY`
-   - **Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbXVxaG5xd2ltbnV3aWt2YWlnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTUyNjg0OSwiZXhwIjoyMTA1MTAyODQ5fQ.xx8Cfa-1zQ81c1AOxCEnUmEsreFg7Cd7LGfnMF8dkcg`
+   - **Value**: `<your-service-role-key-from-supabase-dashboard>`
    - **Environments**: Select Production, Preview, and Development
 
 5. **Save** all variables

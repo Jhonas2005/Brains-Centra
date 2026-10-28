@@ -1,4 +1,4 @@
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://brains.asia';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://brains-centra.vercel.app/';
 
 const FONT = 'Arial, Helvetica, sans-serif';
 const MONO = "'Courier New', Courier, monospace";

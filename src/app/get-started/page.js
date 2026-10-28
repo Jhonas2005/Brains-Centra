@@ -98,15 +98,19 @@ const ParticleBackground = () => {
 export default function GetStarted() {
   const router = useRouter(); // 2. Initialize the router
   const [errorMessage, setErrorMessage] = useState("");
+  const [accountExists, setAccountExists] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false); // 3. State to control the popup
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setAccountExists(false);
 
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
+    setSubmitting(true);
     try {
       const res = await fetch('/api/register', {
         method: 'POST',
@@ -126,10 +130,13 @@ export default function GetStarted() {
           router.push('/');
         }, 3000);
       } else {
-        setErrorMessage(result.message);
+        setAccountExists(res.status === 409 || result.code === 'ACCOUNT_EXISTS');
+        setErrorMessage(result.message || 'Could not create your account.');
       }
     } catch (error) {
       setErrorMessage("An error occurred. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -179,7 +186,40 @@ export default function GetStarted() {
           <p className="text-sm text-indigo-300/80">Create your operator account to get started.</p>
         </div>
 
-        {errorMessage && <p className="text-center text-sm font-semibold text-red-400 mb-4">{errorMessage}</p>}
+        {errorMessage && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={
+              "mb-5 flex items-start gap-3 rounded-lg border px-4 py-3 " +
+              (accountExists
+                ? "bg-amber-500/10 border-amber-500/40"
+                : "bg-red-500/10 border-red-500/40")
+            }
+          >
+            <svg
+              className={"h-5 w-5 flex-shrink-0 mt-0.5 " + (accountExists ? "text-amber-400" : "text-red-400")}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v3.75m0 3.5h.01M10.34 3.94l-8.2 14.2A1.5 1.5 0 003.44 20.5h17.12a1.5 1.5 0 001.3-2.36l-8.2-14.2a1.5 1.5 0 00-2.6 0z" />
+            </svg>
+            <div className="min-w-0 text-left">
+              <p className={"text-sm font-bold " + (accountExists ? "text-amber-300" : "text-red-300")}>
+                {accountExists ? "This account already exists" : "Account not created"}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-indigo-200/80">{errorMessage}</p>
+              {accountExists && (
+                <a
+                  href="/"
+                  className="mt-2 inline-block text-xs font-bold text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                >
+                  Go to sign in
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         <form className="space-y-5" onSubmit={handleRegister}>
           <div className="grid grid-cols-2 gap-4">
@@ -208,8 +248,8 @@ export default function GetStarted() {
             <input name="password" type="password" required minLength="6" className="w-full bg-[#090b14] border border-indigo-800/50 rounded-lg px-4 py-3 text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-all" placeholder="••••••••" />
           </div>
 
-          <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-4 px-4 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_15px_rgba(217,70,239,0.4)] active:scale-95 mt-4">
-            Create Account
+          <button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-4 px-4 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_5px_15px_rgba(217,70,239,0.4)] active:scale-95 mt-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none">
+            {submitting ? "Creating account..." : "Create Account"}
           </button>
         </form>
 

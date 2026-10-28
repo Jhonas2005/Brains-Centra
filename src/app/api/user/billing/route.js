@@ -1,5 +1,33 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { sendMail } from '@/lib/mailer';
+import { billingReceiptEmail, subscriptionCanceledEmail } from '@/lib/emailTemplates';
+
+async function getUserFromRequest(req) {
+  const auth = req.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return { error: 'Not authenticated.' };
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user) return { error: 'Invalid or expired session.' };
+  return { user: data.user };
+}
+
+async function getProfile(userId) {
+  const { data } = await supabaseAdmin
+    .from('profiles')
+    .select('first_name, email')
+    .eq('id', userId)
+    .maybeSingle();
+  return data || {};
+}
+
+function labelModule(id, fallback) {
+  if (fallback) return fallback;
+  return String(id || '')
+    .replace(/[-_]/g, ' ')
+    .toUpperCase();
+}
 
 // GET: Fetch user's purchased modules, payment methods, and invoices
 export async function GET(req) {
@@ -49,12 +77,30 @@ export async function GET(req) {
 // POST: Handle module upgrades and record invoices/payments
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { action, userId, moduleToCancel, newModules, paymentDetails, amountCharged, description } = body;
-
-    if (!userId) {
-      return NextResponse.json({ message: "User ID is required" }, { status: 400 });
+    // The account being billed is always the one on the verified session.
+    // Trusting a userId from the body would let anyone bill or cancel
+    // subscriptions for any account.
+    const { user, error: authError } = await getUserFromRequest(req);
+    if (authError) {
+      console.warn('Billing auth rejected:', authError);
+      return NextResponse.json({ message: authError }, { status: 401 });
     }
+    const userId = user.id;
+
+    const body = await req.json();
+    const {
+      action,
+      moduleToCancel,
+      moduleLabel,
+      newModules,
+      purchasedModules,
+      paymentDetails,
+      amountCharged,
+      description,
+    } = body;
+
+    const profile = await getProfile(userId);
+    const recipient = user.email || profile.email;
 
     // ==========================================
     // 1. HANDLE CANCELLATION
@@ -78,6 +124,21 @@ export async function POST(req) {
           .eq('module_id', moduleToCancel);
 
         if (error) throw error;
+      }
+
+      if (recipient) {
+        try {
+          const mail = subscriptionCanceledEmail({
+            firstName: profile.first_name,
+            email: recipient,
+            modules: moduleToCancel === 'all' ? [] : [labelModule(moduleToCancel, moduleLabel)],
+            canceledAt: new Date().toISOString(),
+          });
+          await sendMail({ to: recipient, ...mail });
+        } catch (mailError) {
+          // The cancellation already committed; a mail outage must not undo it.
+          console.error('Cancellation email failed:', mailError);
+        }
       }
 
       return NextResponse.json({ message: "Subscription canceled successfully" }, { status: 200 });
@@ -110,14 +171,50 @@ export async function POST(req) {
       });
     }
 
+    let invoice = null;
+
     if (amountCharged) {
-      await supabaseAdmin.from('invoices').insert({
-        user_id: userId,
-        amount: amountCharged,
-        currency: 'PHP',
-        description: description || 'Module Purchase / Subscription Upgrade',
-        status: 'paid'
-      });
+      const { data: invoiceRow, error: invoiceError } = await supabaseAdmin
+        .from('invoices')
+        .insert({
+          user_id: userId,
+          amount: amountCharged,
+          currency: 'PHP',
+          description: description || 'Module Purchase / Subscription Upgrade',
+          status: 'paid'
+        })
+        .select('id, amount, currency, description, created_at')
+        .single();
+
+      if (invoiceError) {
+        console.error('Invoice insert failed:', invoiceError);
+      } else {
+        invoice = invoiceRow;
+      }
+    }
+
+    // Receipt goes out only after the invoice is actually recorded, so the
+    // email can never claim a charge that was not persisted.
+    if (invoice && recipient) {
+      try {
+        const invoiceNumber = `INV-${String(invoice.id).slice(0, 8).toUpperCase()}`;
+
+        const mail = billingReceiptEmail({
+          firstName: profile.first_name,
+          email: recipient,
+          invoiceNumber,
+          amount: invoice.amount,
+          currency: invoice.currency || 'PHP',
+          description: invoice.description,
+          modules: Array.isArray(purchasedModules) ? purchasedModules : [],
+          paidAt: invoice.created_at,
+          last4: paymentDetails?.last4,
+        });
+
+        await sendMail({ to: recipient, ...mail });
+      } catch (mailError) {
+        console.error('Receipt email failed:', mailError);
+      }
     }
 
     return NextResponse.json({ message: "Subscription updated successfully" }, { status: 200 });

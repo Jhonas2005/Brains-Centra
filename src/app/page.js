@@ -54,11 +54,57 @@ const SignInModal = ({ onClose }) => {
       setMessage("Success! Redirecting...");
       
       if (profileData.role === 'admin') {
-        window.location.href = "/admin-dashboard"; 
+        // Newly provisioned admins must confirm the emailed one-time code
+        // before the dashboard opens. Existing admins skip straight through.
+        const statusRes = await fetch('/api/auth/verify-admin-code', {
+          headers: { Authorization: `Bearer ${authData.session?.access_token}` },
+        });
+        const status = await statusRes.json();
+
+        if (status.requiresVerification) {
+          setMessage("");
+          setView("admin-code");
+          return;
+        }
+
+        window.location.href = "/admin-dashboard";
       } else {
-        window.location.href = "/user-dashboard"; 
+        window.location.href = "/user-dashboard";
       }
 
+    } catch (error) {
+      console.error(error);
+      setMessage("Connection error. Please try again.");
+    }
+  };
+
+  const handleVerifyAdminCode = async (e) => {
+    e.preventDefault();
+    setMessage("Verifying access code...");
+
+    const code = e.target.code.value.replace(/\D/g, '');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch('/api/auth/verify-admin-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || 'Could not verify the code.');
+        return;
+      }
+
+      setMessage("Success! Redirecting...");
+      window.location.href = '/admin-dashboard';
     } catch (error) {
       console.error(error);
       setMessage("Connection error. Please try again.");
@@ -143,11 +189,13 @@ const SignInModal = ({ onClose }) => {
             {view === "login" && "Welcome Back"}
             {view === "forgot" && "Reset Password"}
             {view === "code" && "Enter Your Code"}
+            {view === "admin-code" && "Admin Access Code"}
           </h2>
           <p className="text-sm text-indigo-300/80">
             {view === "login" && "Sign in to Central Command"}
             {view === "forgot" && "We'll email you a verification code and a secure link"}
             {view === "code" && <>Sent to <span className="font-semibold text-white">{resetEmail}</span></>}
+            {view === "admin-code" && "Enter the one-time code we emailed you. This is only required once."}
           </p>
         </div>
         
@@ -190,7 +238,7 @@ const SignInModal = ({ onClose }) => {
               </button>
             </div>
           </form>
-        ) : (
+        ) : view === "code" ? (
           <form className="space-y-4" onSubmit={handleVerifyCode}>
             <div>
               <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Verification Code</label>
@@ -226,6 +274,34 @@ const SignInModal = ({ onClose }) => {
                 ← Use a different email
               </button>
             </div>
+          </form>
+        ) : (
+          <form className="space-y-4" onSubmit={handleVerifyAdminCode}>
+            <div>
+              <label className="block text-xs font-bold text-indigo-300 mb-1 uppercase tracking-wide">Access Code</label>
+              <input
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={10}
+                required
+                autoFocus
+                onChange={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+                className="w-full bg-[#090b14] border border-fuchsia-800/60 rounded-lg px-4 py-3 text-center text-xl font-mono tracking-[0.3em] text-white placeholder-indigo-500/50 focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50 transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button type="submit" className="w-full bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-2 transition-all duration-300 shadow-[0_4px_14px_rgba(217,70,239,0.25)] active:scale-95">
+              Unlock Admin Dashboard
+            </button>
+
+            <p className="text-[11px] text-indigo-400/80 text-center leading-relaxed">
+              After this one-time check, your email and password are all you need.
+            </p>
           </form>
         )}
       </div>
@@ -637,15 +713,28 @@ const ParticleBackground = () => {
 };
 
 // --- Bulletproof Animation Wrapper ---
+// Starts VISIBLE so the server-rendered HTML is readable even when the client
+// bundle never runs (blocked script, stale chunk, failed hydration). Only
+// content that is below the fold at mount is hidden and faded in on scroll,
+// so a JS failure can never blank the page.
 const FadeIn = ({ children, delay = 0, direction = "up" }) => {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const domRef = useRef(null);
 
   useEffect(() => {
     const node = domRef.current;
     if (!node) return;
 
-    const fallback = setTimeout(() => setIsVisible(true), 1200);
+    // Already on screen at mount: leave it exactly as rendered.
+    const rect = node.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) return;
+
+    if (typeof IntersectionObserver === "undefined") return;
+
+    setIsVisible(false);
+
+    // Safety net: never leave off-screen content hidden forever.
+    const fallback = setTimeout(() => setIsVisible(true), 3000);
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -664,7 +753,7 @@ const FadeIn = ({ children, delay = 0, direction = "up" }) => {
 
     return () => {
       clearTimeout(fallback);
-      if (node) observer.unobserve(node);
+      observer.unobserve(node);
     };
   }, []);
 

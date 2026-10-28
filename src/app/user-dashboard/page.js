@@ -327,7 +327,12 @@ export default function UserDashboard() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordStep, setPasswordStep] = useState('idle'); // 'idle' | 'verify'
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationTarget, setVerificationTarget] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Active Sessions Dummy Data
   const activeSessions = [
@@ -417,6 +422,32 @@ export default function UserDashboard() {
     }
   };
 
+  // Sends an authenticated billing mutation. getUser() forces a token refresh
+  // when the cached access token is stale, which getSession() alone won't do.
+  const postBilling = async (body) => {
+    const { error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw new Error("Your session expired. Please sign in again.");
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Your session expired. Please sign in again.");
+
+    const res = await fetch('/api/user/billing', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.message || "Failed to process payment update");
+    return payload;
+  };
+
   const handleUpgradeSubmit = async () => {
     if (selectedUpgradeModules.length === 0) return;
     setUpgradeProcessing(true);
@@ -431,19 +462,17 @@ export default function UserDashboard() {
 
       const paymentInfo = cardNumber ? { brand: 'Visa', last4: cardNumber.slice(-4) || '4242', expMonth: 12, expYear: 2028 } : null;
 
-      const res = await fetch('/api/user/billing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: userData.id, 
-          newModules: updatedModules,
-          paymentDetails: paymentInfo,
-          amountCharged: totalPrice,
-          description: `Purchased modules: ${selectedUpgradeModules.join(', ').toUpperCase()}`
-        })
-      });
+      const purchasedLabels = selectedUpgradeModules.map(
+        (id) => ALL_MODULES.find(m => m.id === id)?.label || id.toUpperCase()
+      );
 
-      if (!res.ok) throw new Error("Failed to process payment update");
+      await postBilling({
+        newModules: updatedModules,
+        purchasedModules: purchasedLabels,
+        paymentDetails: paymentInfo,
+        amountCharged: totalPrice,
+        description: `Purchased modules: ${selectedUpgradeModules.join(', ').toUpperCase()}`
+      });
 
       setUserData(prev => ({ ...prev, subscribed_modules: updatedModules }));
       setSelectedUpgradeModules([]);
@@ -466,18 +495,13 @@ export default function UserDashboard() {
     setCancelProcessing(true);
 
     try {
-      const res = await fetch('/api/user/billing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'cancel',
-          userId: userData.id, 
-          moduleToCancel: moduleToCancel 
-        })
+      await postBilling({
+        action: 'cancel',
+        moduleToCancel: moduleToCancel,
+        moduleLabel: moduleToCancel === 'all'
+          ? 'All modules'
+          : ALL_MODULES.find(m => m.id === moduleToCancel)?.label || moduleToCancel.toUpperCase()
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to update subscription");
 
       const updatedModules = moduleToCancel === 'all' 
         ? [] 
@@ -529,24 +553,129 @@ export default function UserDashboard() {
     }
   };
 
+  // Resend cooldown ticker for the password verification step.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const requestPasswordCode = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("Your session expired. Please sign in again.");
+    }
+
+    const res = await fetch('/api/auth/password-change/request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ password: newPassword }),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.message || "Could not send the verification code.");
+    return payload;
+  };
+
+  // Step 1: validate locally, then ask the server to email a code. The password
+  // is only stored (encrypted) server-side and is not applied yet.
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
       showNotification("Password must be at least 6 characters.", "error");
       return;
     }
+    if (newPassword !== confirmPassword) {
+      showNotification("Passwords do not match.", "error");
+      return;
+    }
+
     setIsUpdatingPassword(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setNewPassword('');
-      showNotification("Password successfully updated.", "success");
+      const payload = await requestPasswordCode();
+      setVerificationTarget(payload.email || userData?.email || '');
+      setVerificationCode('');
+      setPasswordStep('verify');
+      setResendCooldown(60);
+      showNotification("Verification code sent. Check your inbox.", "success");
     } catch (error) {
-      console.error("Password update error:", error);
-      showNotification("Failed to update password.", "error");
+      console.error("Password change request error:", error);
+      showNotification(error.message || "Failed to send the verification code.", "error");
     } finally {
       setIsUpdatingPassword(false);
     }
+  };
+
+  const handleResendPasswordCode = async () => {
+    if (resendCooldown > 0 || isUpdatingPassword) return;
+    setIsUpdatingPassword(true);
+    try {
+      await requestPasswordCode();
+      setVerificationCode('');
+      setResendCooldown(60);
+      showNotification("A new verification code is on its way.", "success");
+    } catch (error) {
+      console.error("Password code resend error:", error);
+      showNotification(error.message || "Failed to resend the code.", "error");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // Step 2: the code is exchanged server-side for the actual password update.
+  const handleVerifyPasswordChange = async (e) => {
+    e.preventDefault();
+    const digits = verificationCode.replace(/\D/g, '');
+    if (digits.length !== 8) {
+      showNotification("Enter the 8-digit code from your email.", "error");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Your session expired. Please sign in again.");
+      }
+
+      const res = await fetch('/api/auth/password-change/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ code: digits }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 404) setPasswordStep('idle');
+        throw new Error(payload.message || "Could not verify the code.");
+      }
+
+      setNewPassword('');
+      setConfirmPassword('');
+      setVerificationCode('');
+      setPasswordStep('idle');
+      setResendCooldown(0);
+      showNotification("Password successfully updated.", "success");
+    } catch (error) {
+      console.error("Password verification error:", error);
+      showNotification(error.message || "Failed to update password.", "error");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const cancelPasswordChange = () => {
+    setPasswordStep('idle');
+    setVerificationCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setResendCooldown(0);
   };
 
   const availableModulesToBuy = ALL_MODULES.filter(m => 
@@ -933,27 +1062,87 @@ export default function UserDashboard() {
                         {/* Direct Password Update */}
                         <div className="bg-[#13172e]/60 border border-indigo-800/50 rounded-xl p-6 shadow-lg">
                           <h4 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield className="w-4 h-4"/> Update Password</h4>
-                          <form onSubmit={handlePasswordUpdate} className="space-y-4">
-                            <div>
-                              <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">New Password</label>
-                              <input 
-                                type="password"
-                                required
-                                minLength={6}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" 
-                                placeholder="••••••••"
-                              />
-                            </div>
-                            <button 
-                              type="submit" 
-                              disabled={isUpdatingPassword}
-                              className="w-full bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/50 text-indigo-200 hover:text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                            >
-                              {isUpdatingPassword ? 'Updating...' : 'Update Password Securely'}
-                            </button>
-                          </form>
+
+                          {passwordStep === 'idle' ? (
+                            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">New Password</label>
+                                <input
+                                  type="password"
+                                  required
+                                  minLength={6}
+                                  value={newPassword}
+                                  onChange={(e) => setNewPassword(e.target.value)}
+                                  className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                                  placeholder="••••••••"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Confirm New Password</label>
+                                <input
+                                  type="password"
+                                  required
+                                  minLength={6}
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                                  placeholder="••••••••"
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={isUpdatingPassword}
+                                className="w-full bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/50 text-indigo-200 hover:text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                              >
+                                {isUpdatingPassword ? 'Sending Code...' : 'Send Verification Code'}
+                              </button>
+                            </form>
+                          ) : (
+                            <form onSubmit={handleVerifyPasswordChange} className="space-y-4">
+                              <p className="text-xs text-indigo-300/80 leading-relaxed">
+                                We emailed an 8-digit code to{' '}
+                                <span className="font-bold text-white break-all">{verificationTarget || userData?.email}</span>.
+                                Enter it below to finish the change. Your current password stays active until then.
+                              </p>
+                              <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Verification Code</label>
+                                <input
+                                  inputMode="numeric"
+                                  autoComplete="one-time-code"
+                                  maxLength={8}
+                                  required
+                                  value={verificationCode}
+                                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                                  className="w-full bg-[#090b14] border border-indigo-700/50 rounded-lg px-4 py-3 text-lg text-white text-center font-mono tracking-[0.4em] focus:outline-none focus:border-fuchsia-500/60 transition-colors"
+                                  placeholder="00000000"
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={isUpdatingPassword}
+                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-2.5 rounded-lg transition-colors shadow-[0_0_15px_rgba(79,70,229,0.3)] disabled:opacity-50"
+                              >
+                                {isUpdatingPassword ? 'Verifying...' : 'Verify & Update Password'}
+                              </button>
+                              <div className="flex items-center justify-between gap-3 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={handleResendPasswordCode}
+                                  disabled={isUpdatingPassword || resendCooldown > 0}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 hover:text-white transition-colors disabled:opacity-40"
+                                >
+                                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelPasswordChange}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 hover:text-white transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          )}
                         </div>
 
                         {/* Active Sessions */}

@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Users, ShieldAlert, MessageSquare, 
   Settings, LogOut, Plus, Trash2, Mail, Eye, 
   CheckCircle, XCircle, Search, CreditCard, Filter, AlertTriangle,
-  Server, Activity, Lock, Database, Power
+  Server, Activity, Lock, Database, Power,
+  Megaphone, Send, Upload, Loader2, Download
 } from 'lucide-react';
 
 // --- Particle Network Background Component ---
@@ -114,6 +115,49 @@ const formatPHP = (amount) => {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 };
 
+/**
+ * Phone photos are 5-10 MB and Vercel rejects bodies over 4.5 MB.
+ * Shrink anything large to a 1600px JPEG before it leaves the browser.
+ * GIFs are left alone so animations survive.
+ */
+const compressImage = (file) =>
+  new Promise((resolve) => {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.size < 600 * 1024) {
+      resolve(file);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const scale = Math.min(1, 1600 / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) =>
+          resolve(
+            blob
+              ? new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' })
+              : file
+          ),
+        'image/jpeg',
+        0.85
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [inquiries, setInquiries] = useState([]);
@@ -133,6 +177,11 @@ export default function AdminDashboard() {
   });
   const [settingsLoading, setSettingsLoading] = useState(false);
 
+  // Account security (change password)
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwStatus, setPwStatus] = useState({ type: '', message: '' });
+
   // Modal States
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null); 
@@ -140,6 +189,8 @@ export default function AdminDashboard() {
   const [viewSubModal, setViewSubModal] = useState(null);
   const [viewInquiryModal, setViewInquiryModal] = useState(null);
   const [emailReplyModal, setEmailReplyModal] = useState(null);
+  const [thread, setThread] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
   const [addAdminModal, setAddAdminModal] = useState(false);
 
   // Filters & Processing
@@ -148,12 +199,101 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [subFilter, setSubFilter] = useState('all');
   const [inquiriesFilter, setInquiriesFilter] = useState('All');
+  const [inquiryAudience, setInquiryAudience] = useState('all'); // all | customer | prospect
+
+  // Gate: no admin dashboard renders until the one-time code is confirmed.
+  const [gate, setGate] = useState('checking'); // checking | code | ready | denied
+  const [gateCode, setGateCode] = useState('');
+  const [gateMessage, setGateMessage] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+
+  // Email campaigns
+  const [campaignDraft, setCampaignDraft] = useState({ subject: '', body: '', images: [] });
+  const [campaignAudience, setCampaignAudience] = useState('customers'); // customers | prospects | all | custom
+  const [campaignAudiences, setCampaignAudiences] = useState({ customers: [], prospects: [] });
+  const [campaignSelected, setCampaignSelected] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignAudienceSearch, setCampaignAudienceSearch] = useState('');
+  const [campaignLoading, setCampaignLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [campaignError, setCampaignError] = useState('');
+  const [campaignNotice, setCampaignNotice] = useState('');
+  const [campaignProgress, setCampaignProgress] = useState(null); // { total, sent, failed, phase }
+  const [confirmCampaign, setConfirmCampaign] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAccess = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        window.location.href = '/';
+        return;
+      }
+
+      setAdminEmail(session.user?.email || '');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+
+      if (cancelled) return;
+
+      if (profile?.role !== 'admin') {
+        setGateMessage('This account does not have administrator access.');
+        setGate('denied');
+        return;
+      }
+
+      const res = await fetch('/api/auth/verify-admin-code', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const status = await res.json();
+
+      if (cancelled) return;
+      setGate(status.requiresVerification ? 'code' : 'ready');
+    };
+
+    checkAccess();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleUnlockAdmin = async (e) => {
+    e.preventDefault();
+    setGateMessage('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/auth/verify-admin-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ code: gateCode }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setGateMessage(data.message || 'Could not verify the code.');
+        return;
+      }
+
+      setGate('ready');
+    } catch (err) {
+      setGateMessage('Connection error. Please try again.');
+    }
+  };
 
   useEffect(() => {
     setSearchQuery('');
     setStatusFilter('all');
     setSubFilter('all');
     setInquiriesFilter('All');
+    setInquiryAudience('all');
   }, [activeTab]);
 
   useEffect(() => {
@@ -184,6 +324,236 @@ export default function AdminDashboard() {
       if (response.ok) setInquiries(data.inquiries || []);
     } catch (err) {
       console.error('Failed to fetch inquiries:', err);
+    }
+  };
+
+
+  // --- EMAIL CAMPAIGNS ---
+
+  const authHeaders = async (json = true) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = {};
+    if (json) headers['Content-Type'] = 'application/json';
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    return headers;
+  };
+
+  const allCampaignPeople = [
+    ...campaignAudiences.customers,
+    ...campaignAudiences.prospects,
+  ];
+
+  const campaignRecipients =
+    campaignAudience === 'customers'
+      ? campaignAudiences.customers
+      : campaignAudience === 'prospects'
+        ? campaignAudiences.prospects
+        : campaignAudience === 'all'
+          ? allCampaignPeople
+          : allCampaignPeople.filter((person) => campaignSelected.includes(person.email));
+
+  const campaignPeopleQuery = campaignAudienceSearch.trim().toLowerCase();
+  const campaignPeopleShown = allCampaignPeople.filter(
+    (person) =>
+      !campaignPeopleQuery ||
+      person.email.includes(campaignPeopleQuery) ||
+      (person.name || '').toLowerCase().includes(campaignPeopleQuery) ||
+      (person.company || '').toLowerCase().includes(campaignPeopleQuery)
+  );
+
+  const fetchCampaigns = async () => {
+    try {
+      const res = await fetch('/api/admin/campaigns', { headers: await authHeaders(false) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Could not load campaigns.');
+      setCampaignAudiences({
+        customers: data.customers || [],
+        prospects: data.prospects || [],
+      });
+      setCampaigns(data.campaigns || []);
+    } catch (err) {
+      setCampaignError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'campaigns' && gate === 'ready') fetchCampaigns();
+  }, [activeTab, gate]);
+
+  const toggleCampaignPerson = (email) => {
+    setCampaignSelected((prev) =>
+      prev.includes(email) ? prev.filter((item) => item !== email) : [...prev, email]
+    );
+  };
+
+  const toggleAllShown = () => {
+    const shownEmails = campaignPeopleShown.map((person) => person.email);
+    const everyShownSelected = shownEmails.every((email) => campaignSelected.includes(email));
+
+    setCampaignSelected((prev) =>
+      everyShownSelected
+        ? prev.filter((email) => !shownEmails.includes(email))
+        : Array.from(new Set([...prev, ...shownEmails]))
+    );
+  };
+
+  const handleCampaignImages = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    setCampaignError('');
+    setUploadingImage(true);
+
+    try {
+      const room = Math.max(0, 6 - campaignDraft.images.length);
+
+      for (const file of files.slice(0, room)) {
+        if (!file.type.startsWith('image/')) {
+          setCampaignError('Only image files can be attached.');
+          continue;
+        }
+
+        const prepared = await compressImage(file);
+        const form = new FormData();
+        form.append('file', prepared);
+
+        const res = await fetch('/api/admin/campaigns/upload', {
+          method: 'POST',
+          headers: await authHeaders(false),
+          body: form,
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          setCampaignError(data.message || 'Image upload failed.');
+          continue;
+        }
+
+        setCampaignDraft((prev) => ({ ...prev, images: [...prev.images, data.url] }));
+      }
+
+      if (files.length > room) setCampaignError('A campaign can include up to 6 images.');
+    } catch (err) {
+      setCampaignError(err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setCampaignError('');
+    setCampaignNotice('');
+
+    if (!campaignDraft.subject.trim() || !campaignDraft.body.trim()) {
+      setCampaignError('Add a subject line and a message before sending a test.');
+      return;
+    }
+
+    setCampaignLoading(true);
+
+    try {
+      const res = await fetch('/api/admin/campaigns', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({
+          action: 'test',
+          to: adminEmail,
+          subject: campaignDraft.subject,
+          body: campaignDraft.body,
+          imageUrls: campaignDraft.images,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Test send failed.');
+      setCampaignNotice(`Test email sent to ${data.to}.`);
+    } catch (err) {
+      setCampaignError(err.message);
+    } finally {
+      setCampaignLoading(false);
+    }
+  };
+
+  const handleSendCampaign = async () => {
+    setConfirmCampaign(false);
+    setCampaignError('');
+    setCampaignNotice('');
+
+    if (!campaignRecipients.length) {
+      setCampaignError('Choose at least one recipient.');
+      return;
+    }
+
+    setCampaignProgress({ phase: 'preparing', total: 0, sent: 0, failed: 0 });
+
+    try {
+      const headers = await authHeaders();
+
+      const prepRes = await fetch('/api/admin/campaigns', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          action: 'prepare',
+          subject: campaignDraft.subject,
+          body: campaignDraft.body,
+          imageUrls: campaignDraft.images,
+          audience: campaignAudience,
+          emails: campaignSelected,
+        }),
+      });
+      const prep = await prepRes.json();
+      if (!prepRes.ok) throw new Error(prep.message || 'Could not prepare the campaign.');
+
+      const { campaignId, total } = prep;
+      setCampaignProgress({ phase: 'sending', total, sent: 0, failed: 0 });
+
+      let remaining = total;
+      let guard = 0;
+
+      while (remaining > 0 && guard < 200) {
+        guard += 1;
+
+        let batch = null;
+        let lastError = '';
+
+        for (let attempt = 0; attempt < 3 && !batch; attempt += 1) {
+          try {
+            const res = await fetch('/api/admin/campaigns', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ action: 'sendBatch', campaignId, limit: 20 }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Batch failed.');
+            batch = data;
+          } catch (err) {
+            lastError = err.message;
+            await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+          }
+        }
+
+        if (!batch) {
+          throw new Error(`Stopped after ${total - remaining} of ${total}. ${lastError}`);
+        }
+
+        remaining = batch.remaining;
+        setCampaignProgress({
+          phase: batch.done ? 'done' : 'sending',
+          total,
+          sent: batch.sent,
+          failed: batch.failed,
+        });
+
+        if (!batch.done) await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+
+      setCampaignNotice('Campaign finished. See the delivery counts below.');
+      setCampaignDraft({ subject: '', body: '', images: [] });
+      setCampaignSelected([]);
+      fetchCampaigns();
+    } catch (err) {
+      setCampaignError(err.message);
+      setCampaignProgress(null);
+      fetchCampaigns();
     }
   };
 
@@ -237,12 +607,17 @@ export default function AdminDashboard() {
       if (settingKey === 'maintenanceMode') {
         if (newValue === true) {
           const customers = users.filter(u => u.role === 'customer');
+          const { data: { session } } = await supabase.auth.getSession();
+          const authHeaders = {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`
+          };
           
           // Dispatch emails asynchronously so it doesn't freeze the dashboard
           Promise.allSettled(customers.map(customer => 
             fetch('/api/admin/send-email', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders,
               body: JSON.stringify({
                 to: customer.email,
                 subject: "SYSTEM ALERT: Scheduled Maintenance Notification",
@@ -283,8 +658,6 @@ export default function AdminDashboard() {
     const firstName = e.target.firstName.value;
     const lastName = e.target.lastName.value;
     
-    const tempPassword = Math.random().toString(36).slice(-8) + "B!1"; 
-
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
@@ -292,27 +665,15 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           action: 'createAdmin',
           email,
-          password: tempPassword,
           firstName,
           lastName
         })
       });
       
-      if (!res.ok) throw new Error("Failed to create admin account. Check backend permissions.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to create admin account.");
 
-      const emailBody = `Hello ${firstName},\n\nYou have been added as an Administrator to the Brains Central Command Dashboard.\n\nYour secure login credentials are:\nEmail: ${email}\nTemporary Password: ${tempPassword}\n\nPlease log in and change your password immediately.`;
-      
-      await fetch('/api/admin/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: email,
-          subject: "Secure Credentials: Admin Access Granted",
-          message: emailBody
-        })
-      });
-
-      alert("Admin created successfully! Credentials have been sent to their email.");
+      alert(data.message || "Administrator created. A one-time access code has been emailed to them.");
       setAddAdminModal(false);
       fetchUsers();
     } catch (err) {
@@ -386,6 +747,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchThread = async (inquiryId) => {
+    setThreadLoading(true);
+    try {
+      const res = await fetch(`/api/admin/inquiries?id=${encodeURIComponent(inquiryId)}`);
+      const data = await res.json();
+      if (res.ok) setThread(data.messages || []);
+    } catch (err) {
+      console.error('Failed to load thread:', err);
+    } finally {
+      setThreadLoading(false);
+    }
+  };
+
+  const openInquiry = (inq) => {
+    setViewInquiryModal(inq);
+    setThread([]);
+    fetchThread(inq.id);
+  };
+
   const toggleInquiryStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Pending' ? 'Contacted' : 'Pending';
     setInquiries(prev => prev.map(inq => inq.id === id ? { ...inq, status: newStatus } : inq));
@@ -436,29 +816,91 @@ export default function AdminDashboard() {
       };
     }
 
+    const inquiry = emailReplyModal;
+
     const payload = {
-      to: e.target.toEmail.value,
+      action: 'reply',
+      inquiryId: inquiry.id,
       subject: e.target.subject.value,
       message: e.target.message.value,
       attachment: attachmentData
     };
 
     try {
-      const res = await fetch('/api/admin/send-email', {
+      const res = await fetch('/api/admin/inquiries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to send email');
-      
-      toggleInquiryStatus(emailReplyModal.id, 'Pending');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
       setEmailReplyModal(null);
-      alert('Email sent successfully!');
+      await fetchInquiries();
+      // Reopen the thread so the sent reply is visible in context.
+      openInquiry({ ...inquiry, status: 'Contacted' });
     } catch (err) {
       alert(`Error sending email: ${err.message}`);
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwStatus({ type: '', message: '' });
+
+    const { current, next, confirm } = pwForm;
+
+    if (next.length < 8) {
+      setPwStatus({ type: 'error', message: 'New password must be at least 8 characters.' });
+      return;
+    }
+    if (next !== confirm) {
+      setPwStatus({ type: 'error', message: 'The new passwords do not match.' });
+      return;
+    }
+    if (next === current) {
+      setPwStatus({ type: 'error', message: 'Choose a password different from your temporary one.' });
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.email) throw new Error('Your session expired. Please sign in again.');
+
+      // Re-authenticate first. updateUser() alone does not ask for the current
+      // password, so anyone with a borrowed tab could otherwise take the account.
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: current,
+      });
+      if (authError) throw new Error('Your current password is incorrect.');
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: next });
+      if (updateError) throw updateError;
+
+      // Fire-and-forget confirmation email, scoped to the new session.
+      const { data: { session: fresh } } = await supabase.auth.getSession();
+      fetch('/api/auth/password-changed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${fresh?.access_token}`,
+        },
+      }).catch(() => {});
+
+      setPwForm({ current: '', next: '', confirm: '' });
+      setPwStatus({
+        type: 'success',
+        message: 'Password updated. Use it the next time you sign in.',
+      });
+    } catch (err) {
+      setPwStatus({ type: 'error', message: err.message || 'Could not update the password.' });
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -484,8 +926,52 @@ export default function AdminDashboard() {
     return true;
   });
 
+  const exportCustomersCsv = () => {
+    if (displayedUsers.length === 0) return;
+
+    const columns = [
+      ['First Name', (u) => u.first_name],
+      ['Last Name', (u) => u.last_name],
+      ['Email', (u) => u.email],
+      ['Company', (u) => u.company],
+      ['Role', (u) => u.role],
+      ['Status', (u) => u.status || 'new'],
+      ['Subscribed Modules', (u) => (u.subscribed_modules || []).join('; ')],
+      ['Email Confirmed', (u) => (u.email_confirmed ? 'Yes' : 'No')],
+      ['Last Sign In', (u) => (u.last_sign_in ? new Date(u.last_sign_in).toLocaleString() : '')],
+      ['Created At', (u) => (u.created_at ? new Date(u.created_at).toLocaleString() : '')],
+    ];
+
+    const escapeCell = (value) => {
+      let text = value === null || value === undefined ? '' : String(value);
+      // Keep spreadsheet apps from evaluating a cell as a formula.
+      if (/^[=+\-@]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+
+    const lines = [
+      columns.map(([label]) => escapeCell(label)).join(','),
+      ...displayedUsers.map((user) => columns.map(([, read]) => escapeCell(read(user))).join(',')),
+    ];
+
+    const blob = new Blob(['\uFEFF', lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'customers-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const customerInquiryCount = inquiries.filter((inq) => inq.is_customer).length;
+  const prospectInquiryCount = inquiries.length - customerInquiryCount;
+
   const displayedInquiries = inquiries.filter(inq => {
     if (inquiriesFilter !== 'All' && inq.type !== inquiriesFilter) return false;
+    if (inquiryAudience === 'customer' && !inq.is_customer) return false;
+    if (inquiryAudience === 'prospect' && inq.is_customer) return false;
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
       return (inq.name && inq.name.toLowerCase().includes(query)) || 
@@ -519,6 +1005,62 @@ export default function AdminDashboard() {
             Retry Connection
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (gate !== 'ready') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#090b14] p-4 font-sans text-gray-100">
+        {gate === 'checking' && (
+          <div className="text-indigo-400 animate-pulse font-mono tracking-widest text-sm">
+            Verifying administrator access...
+          </div>
+        )}
+
+        {gate === 'denied' && (
+          <div className="w-full max-w-md bg-[#13172e] border border-red-500/40 rounded-2xl p-8 text-center">
+            <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Access denied</h2>
+            <p className="text-xs text-indigo-300/80 mb-6">{gateMessage}</p>
+            <button onClick={handleLogout} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
+              Back to Sign In
+            </button>
+          </div>
+        )}
+
+        {gate === 'code' && (
+          <form onSubmit={handleUnlockAdmin} className="w-full max-w-md bg-[#13172e] border border-fuchsia-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(217,70,239,0.2)]">
+            <div className="w-14 h-14 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-7 h-7 text-fuchsia-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white text-center mb-2">Administrator verification</h2>
+            <p className="text-xs text-indigo-300/80 text-center mb-6 leading-relaxed">
+              Enter the one-time code sent to your email. This is required once, then your email and password are enough.
+            </p>
+
+            {gateMessage && (
+              <p className="mb-4 text-center text-xs font-semibold text-red-400">{gateMessage}</p>
+            )}
+
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={10}
+              required
+              autoFocus
+              value={gateCode}
+              onChange={(e) => setGateCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="w-full bg-[#090b14] border border-fuchsia-800/60 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-[0.3em] text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50"
+              placeholder="••••••••"
+            />
+
+            <button type="submit" className="w-full mt-5 bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95">
+              Unlock Dashboard
+            </button>
+          </form>
+        )}
       </div>
     );
   }
@@ -564,6 +1106,15 @@ export default function AdminDashboard() {
                 {inquiries.filter(i => i.status === 'Pending').length}
               </span>
             )}
+          </button>
+
+          <div className="hidden lg:block text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest px-4 pt-4 pb-2">Growth</div>
+
+          <button onClick={() => setActiveTab('campaigns')} className={`flex items-center justify-between px-3 py-3 lg:px-4 rounded-xl transition-all ${activeTab === 'campaigns' ? 'bg-rose-600/20 border border-rose-500/50 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]' : 'text-indigo-300 hover:bg-[#13172e]/80 hover:text-white'}`}>
+            <div className="flex items-center gap-4">
+              <Megaphone className="w-6 h-6" strokeWidth={1.5} />
+              <span className="hidden lg:block font-semibold">Email Campaigns</span>
+            </div>
           </button>
 
           <div className="hidden lg:block text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest px-4 pt-4 pb-2">System</div>
@@ -643,6 +1194,56 @@ export default function AdminDashboard() {
               {/* Left Column: Platform Controls & Health */}
               <div className="lg:col-span-1 space-y-8">
                 
+                {/* Account Security: change temporary password */}
+                <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-[50px] pointer-events-none"></div>
+
+                  <h3 className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-1 flex items-center gap-2 relative z-10">
+                    <Lock className="w-4 h-4 text-fuchsia-400" /> Account Security
+                  </h3>
+                  <p className="text-[11px] text-indigo-400/80 mb-5 relative z-10">
+                    Replace the temporary password you were issued after signing in.
+                  </p>
+
+                  <form onSubmit={handleChangePassword} className="space-y-3 relative z-10">
+                    {[
+                      { key: 'current', label: 'Current / Temporary Password', autoComplete: 'current-password' },
+                      { key: 'next', label: 'New Password', autoComplete: 'new-password' },
+                      { key: 'confirm', label: 'Confirm New Password', autoComplete: 'new-password' },
+                    ].map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                          {field.label}
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          minLength={field.key === 'current' ? undefined : 8}
+                          autoComplete={field.autoComplete}
+                          value={pwForm[field.key]}
+                          onChange={(e) => setPwForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                          className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-fuchsia-500/50 focus:ring-1 focus:ring-fuchsia-500/50"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    ))}
+
+                    {pwStatus.message && (
+                      <div className={`text-[11px] font-semibold rounded-lg px-3 py-2 border ${pwStatus.type === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+                        {pwStatus.message}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={pwSaving}
+                      className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold py-2.5 rounded-xl text-sm transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {pwSaving ? 'Updating...' : 'Update Password'}
+                    </button>
+                  </form>
+                </div>
+
                 {/* System Health Module */}
                 <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[50px] pointer-events-none"></div>
@@ -790,6 +1391,334 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* EMAIL CAMPAIGNS TAB */}
+          {activeTab === 'campaigns' && (
+            <div className="animate-fadeIn max-w-[1600px] mx-auto space-y-6">
+
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                    <Megaphone className="w-7 h-7 text-rose-400" /> Email Campaigns
+                  </h2>
+                  <p className="text-sm text-indigo-300/80 mt-1">
+                    Compose one professional email and send it to the customers and prospects you choose.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 font-bold">
+                    {campaignAudiences.customers.length} customers
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
+                    {campaignAudiences.prospects.length} prospects
+                  </span>
+                </div>
+              </div>
+
+              {campaignError && (
+                <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/40 rounded-xl px-4 py-3">
+                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-200">{campaignError}</p>
+                </div>
+              )}
+
+              {campaignNotice && (
+                <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/40 rounded-xl px-4 py-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-emerald-200">{campaignNotice}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+                {/* COMPOSER */}
+                <div className="xl:col-span-2 bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+                  <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-rose-400" /> Compose
+                  </h3>
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Subject line</label>
+                      <input
+                        type="text"
+                        maxLength={200}
+                        value={campaignDraft.subject}
+                        onChange={(e) => setCampaignDraft((prev) => ({ ...prev, subject: e.target.value }))}
+                        placeholder="e.g. New: Housekeeper IoT automation for your properties"
+                        className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-2.5 text-sm text-white placeholder-indigo-500/50 focus:outline-none focus:border-rose-500/50"
+                      />
+                      <div className="text-right text-[10px] text-indigo-500 mt-1">{campaignDraft.subject.length}/200</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">Message</label>
+                      <textarea
+                        rows={12}
+                        value={campaignDraft.body}
+                        onChange={(e) => setCampaignDraft((prev) => ({ ...prev, body: e.target.value }))}
+                        placeholder={"Hi there,\n\nWe build systems for hotels, landlords and property teams..."}
+                        className="w-full bg-[#090b14] border border-indigo-700/80 rounded-xl px-4 py-3 text-sm text-white placeholder-indigo-500/50 focus:outline-none focus:border-rose-500/50 leading-relaxed"
+                      />
+                      <p className="text-[10px] text-indigo-500 mt-1">
+                        Plain text. Leave a blank line between paragraphs — it is rendered as a styled email.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                        Images ({campaignDraft.images.length}/6)
+                      </label>
+
+                      <label
+                        className={'flex items-center justify-center gap-3 rounded-xl border border-dashed px-4 py-6 transition-all ' +
+                          (uploadingImage || campaignDraft.images.length >= 6
+                            ? 'border-indigo-800/60 bg-[#090b14]/30 cursor-not-allowed opacity-60'
+                            : 'border-indigo-700/70 bg-[#090b14]/60 hover:border-rose-500/60 cursor-pointer')}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          disabled={uploadingImage || campaignDraft.images.length >= 6}
+                          onChange={(e) => {
+                            handleCampaignImages(e.target.files);
+                            e.target.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        {uploadingImage ? (
+                          <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
+                        ) : (
+                          <Upload className="w-5 h-5 text-rose-400" />
+                        )}
+                        <span className="text-xs text-indigo-300">
+                          {uploadingImage ? 'Uploading...' : 'Upload product shots or screenshots (JPG, PNG, WebP)'}
+                        </span>
+                      </label>
+
+                      {campaignDraft.images.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                          {campaignDraft.images.map((url) => (
+                            <div key={url} className="relative group rounded-xl overflow-hidden border border-indigo-800/60 bg-[#090b14]">
+                              <img src={url} alt="" className="w-full h-24 object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setCampaignDraft((prev) => ({ ...prev, images: prev.images.filter((item) => item !== url) }))}
+                                className="absolute top-1.5 right-1.5 bg-[#090b14]/90 border border-red-500/50 text-red-400 rounded-full p-1 hover:bg-red-500 hover:text-white transition-all"
+                                title="Remove image"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AUDIENCE */}
+                <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] flex flex-col">
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-400" /> Audience
+                  </h3>
+
+                  <div className="space-y-2">
+                    {[
+                      { id: 'customers', label: 'Existing customers', desc: 'Accounts in your customer database', count: campaignAudiences.customers.length },
+                      { id: 'prospects', label: 'Potential customers', desc: 'Inquiries with no account yet', count: campaignAudiences.prospects.length },
+                      { id: 'all', label: 'Everyone', desc: 'Customers plus prospects', count: campaignAudiences.customers.length + campaignAudiences.prospects.length },
+                      { id: 'custom', label: 'Choose specific people', desc: 'Pick recipients one by one', count: campaignSelected.length }
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setCampaignAudience(option.id)}
+                        className={'w-full text-left rounded-xl border p-3 transition-all ' +
+                          (campaignAudience === option.id
+                            ? 'border-rose-500/60 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.12)]'
+                            : 'border-indigo-800/60 bg-[#090b14]/50 hover:border-indigo-600')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-white">{option.label}</span>
+                          <span className="text-xs font-black text-rose-300">{option.count}</span>
+                        </div>
+                        <p className="text-[11px] text-indigo-400/80 mt-0.5">{option.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {campaignAudience === 'custom' && (
+                    <div className="mt-3 border border-indigo-800/60 rounded-xl overflow-hidden">
+                      <div className="p-2 border-b border-indigo-800/60 bg-[#090b14]/60 space-y-2">
+                        <input
+                          type="text"
+                          value={campaignAudienceSearch}
+                          onChange={(e) => setCampaignAudienceSearch(e.target.value)}
+                          placeholder="Search name, email, company..."
+                          className="w-full bg-[#090b14] border border-indigo-700/60 rounded-lg px-3 py-1.5 text-xs text-white placeholder-indigo-500/60 focus:outline-none focus:border-rose-500/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={toggleAllShown}
+                          className="text-[10px] font-bold uppercase tracking-widest text-rose-300 hover:text-rose-200"
+                        >
+                          {campaignPeopleShown.every((person) => campaignSelected.includes(person.email)) ? 'Clear shown' : 'Select all shown'}
+                        </button>
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto connector-scrollbar divide-y divide-indigo-800/40">
+                        {campaignPeopleShown.map((person) => (
+                          <label key={person.email} className="flex items-start gap-2.5 p-2.5 hover:bg-indigo-900/30 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={campaignSelected.includes(person.email)}
+                              onChange={() => toggleCampaignPerson(person.email)}
+                              className="mt-0.5 accent-rose-500"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-xs text-white truncate">{person.name || person.email}</span>
+                              <span className="block text-[10px] text-indigo-400 truncate">
+                                {person.email} · {person.kind === 'customer' ? 'Customer' : person.source}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                        {campaignPeopleShown.length === 0 && (
+                          <div className="p-4 text-center text-[11px] text-indigo-400/60">No matches.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-auto pt-5">
+                    <div className="flex items-end justify-between mb-3">
+                      <span className="text-xs text-indigo-300">Recipients selected</span>
+                      <span className="text-2xl font-black text-white">{campaignRecipients.length}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={handleSendTest}
+                        disabled={campaignLoading || uploadingImage || campaignProgress?.phase === 'sending'}
+                        className="w-full flex items-center justify-center gap-2 border border-indigo-700 hover:border-indigo-500 text-indigo-200 hover:text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                      >
+                        {campaignLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                        Send test to {adminEmail || 'me'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setConfirmCampaign(true)}
+                        disabled={campaignLoading || uploadingImage || !campaignRecipients.length || campaignProgress?.phase === 'sending'}
+                        className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-[0_0_20px_rgba(244,63,94,0.25)] active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" /> Send Campaign
+                      </button>
+                    </div>
+
+                    {campaignProgress && (
+                      <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/5 p-4">
+                        {campaignProgress.phase === 'preparing' ? (
+                          <div className="flex items-center gap-2 text-xs text-rose-200">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Preparing the recipient list...
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex justify-between text-[11px] font-bold text-rose-200 mb-2">
+                              <span>{campaignProgress.phase === 'done' ? 'Campaign complete' : 'Sending...'}</span>
+                              <span>{campaignProgress.sent + campaignProgress.failed} / {campaignProgress.total}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-[#090b14] overflow-hidden">
+                              <div
+                                className="h-full bg-rose-500 transition-all"
+                                style={{ width: (campaignProgress.total ? Math.round(((campaignProgress.sent + campaignProgress.failed) / campaignProgress.total) * 100) : 0) + '%' }}
+                              />
+                            </div>
+                            <div className="mt-2 flex justify-between text-[10px]">
+                              <span className="text-emerald-400">{campaignProgress.sent} delivered</span>
+                              <span className="text-red-400">{campaignProgress.failed} failed</span>
+                            </div>
+                            {campaignProgress.phase === 'done' && (
+                              <button
+                                type="button"
+                                onClick={() => setCampaignProgress(null)}
+                                className="mt-3 text-[11px] font-bold text-indigo-300 hover:text-white"
+                              >
+                                Dismiss
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* HISTORY */}
+              <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.3)]">
+                <div className="px-6 py-4 border-b border-indigo-800/50 bg-[#090b14]/50">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-rose-400" /> Recent Campaigns
+                  </h3>
+                </div>
+
+                <div className="overflow-x-auto connector-scrollbar">
+                  <table className="min-w-full divide-y divide-indigo-800/30 text-left">
+                    <thead className="bg-[#090b14]/50">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Subject</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Audience</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Recipients</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Delivered</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Failed</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-xs font-bold text-indigo-300 uppercase tracking-wider">Sent</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-indigo-800/30">
+                      {campaigns.map((campaign) => (
+                        <tr key={campaign.id} className="hover:bg-indigo-900/20 transition-colors">
+                          <td className="px-6 py-4 text-sm text-white font-medium max-w-xs truncate">{campaign.subject}</td>
+                          <td className="px-6 py-4 text-xs text-indigo-300">
+                            {campaign.audience === 'customers' ? 'Existing customers'
+                              : campaign.audience === 'prospects' ? 'Potential customers'
+                              : campaign.audience === 'all' ? 'Everyone' : 'Selected people'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-indigo-200">{campaign.recipient_count}</td>
+                          <td className="px-6 py-4 text-sm text-emerald-400 font-bold">{campaign.sent_count}</td>
+                          <td className="px-6 py-4 text-sm text-red-400 font-bold">{campaign.failed_count}</td>
+                          <td className="px-6 py-4">
+                            <span className={'inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ' +
+                              (campaign.status === 'sent'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : campaign.status === 'cancelled'
+                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30')}>
+                              {campaign.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-indigo-400">
+                            {new Date(campaign.created_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {campaigns.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-10 text-center text-indigo-400/60 text-sm">
+                            No campaigns yet. Your first send will appear here.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SHARED TABLE CONTAINER FOR ADMINS, CUSTOMERS, INQUIRIES */}
           {['admins', 'customers', 'inquiries'].includes(activeTab) && (
             <div className="bg-[#13172e]/80 backdrop-blur-md border border-indigo-800/50 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.3)] overflow-hidden max-w-[1600px] mx-auto animate-fadeIn flex flex-col max-h-full">
@@ -848,22 +1777,53 @@ export default function AdminDashboard() {
                         <option value="subscribed">Subscribed</option>
                         <option value="unsubscribed">Not Subscribed</option>
                       </select>
+
+                      <button
+                        onClick={exportCustomersCsv}
+                        disabled={displayedUsers.length === 0}
+                        title="Exports the current filtered view"
+                        className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-700/50 text-sm font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Download className="w-4 h-4"/> Export CSV
+                      </button>
                     </>
                   )}
 
                   {activeTab === 'inquiries' && (
-                    <select 
-                      value={inquiriesFilter}
-                      onChange={(e) => setInquiriesFilter(e.target.value)}
-                      className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer w-full sm:w-44 transition-all outline-none"
-                    >
-                      <option value="All">All Categories</option>
-                      <option value="SaaS Trial">SaaS Trial</option>
-                      <option value="Connector Trial">Connector Trial</option>
-                      <option value="Agency Service">Agency Service</option>
-                      <option value="Hardware">Hardware</option>
-                      <option value="Consultation">Consultation</option>
-                    </select>
+                    <>
+                      <div className="flex bg-[#090b14]/80 border border-indigo-700/50 rounded-lg p-1 w-full sm:w-auto">
+                        {[
+                          { id: 'all', label: 'All', count: inquiries.length },
+                          { id: 'customer', label: 'Customers', count: customerInquiryCount },
+                          { id: 'prospect', label: 'Prospects', count: prospectInquiryCount }
+                        ].map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setInquiryAudience(option.id)}
+                            className={'flex-1 sm:flex-none px-3 py-1.5 rounded-md text-[11px] font-bold whitespace-nowrap transition-all ' +
+                              (inquiryAudience === option.id
+                                ? 'bg-emerald-600/30 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.15)]'
+                                : 'text-indigo-300 hover:text-white')}
+                          >
+                            {option.label} <span className="opacity-60">{option.count}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <select 
+                        value={inquiriesFilter}
+                        onChange={(e) => setInquiriesFilter(e.target.value)}
+                        className="bg-[#090b14]/80 border border-indigo-700/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none focus:border-emerald-500/50 cursor-pointer w-full sm:w-44 transition-all outline-none"
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="SaaS Trial">SaaS Trial</option>
+                        <option value="Connector Trial">Connector Trial</option>
+                        <option value="Agency Service">Agency Service</option>
+                        <option value="Hardware">Hardware</option>
+                        <option value="Consultation">Consultation</option>
+                      </select>
+                    </>
                   )}
                 </div>
               </div>
@@ -1012,7 +1972,15 @@ export default function AdminDashboard() {
                           <div className="text-xs text-indigo-400/70 font-mono mt-1">{new Date(inq.created_at || inq.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
-                          <div className="text-sm font-bold text-white">{inq.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-white">{inq.name}</span>
+                            <span className={'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ' +
+                              (inq.is_customer
+                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                : 'bg-amber-500/20 text-amber-300 border-amber-500/30')}>
+                              {inq.is_customer ? 'Customer' : 'Prospect'}
+                            </span>
+                          </div>
                           <div className="text-xs text-indigo-300 mt-1 flex items-center gap-1.5"><Mail className="w-3 h-3 opacity-50"/> {inq.email}</div>
                           {inq.company && <div className="text-[10px] text-indigo-400/60 font-mono mt-1 uppercase">{inq.company}</div>}
                         </td>
@@ -1028,6 +1996,16 @@ export default function AdminDashboard() {
                         <td className="px-6 py-5">
                           <div className="text-sm font-bold text-indigo-100">{inq.subject}</div>
                           <div className="text-xs text-indigo-300/80 mt-1 truncate max-w-[200px]">{inq.details || <span className="italic opacity-50">No additional details</span>}</div>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {inq.message_count > 0 && (
+                              <span className="text-[10px] text-indigo-400/70">{inq.message_count} {inq.message_count === 1 ? "reply" : "replies"}</span>
+                            )}
+                            {inq.awaiting_reply && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                New reply
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
@@ -1038,7 +2016,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setViewInquiryModal(inq)} className="bg-emerald-600/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-400 hover:text-white p-1.5 rounded-lg transition-all" title="Read Full Message">
+                            <button onClick={() => openInquiry(inq)} className="bg-emerald-600/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-400 hover:text-white p-1.5 rounded-lg transition-all" title="Read Full Message">
                               <Eye className="w-4 h-4" />
                             </button>
                             <button onClick={() => setEmailReplyModal(inq)} className="bg-blue-600/20 hover:bg-blue-500/40 border border-blue-500/50 text-blue-400 hover:text-white p-1.5 rounded-lg transition-all" title="Reply via Email">
@@ -1078,6 +2056,39 @@ export default function AdminDashboard() {
         </div>
       </main>
 
+      {/* --- CAMPAIGN CONFIRM MODAL --- */}
+      {confirmCampaign && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#090b14]/80 backdrop-blur-sm cursor-pointer" onClick={() => setConfirmCampaign(false)}></div>
+          <div className="relative w-full max-w-md bg-[#13172e] border border-rose-500/50 rounded-2xl p-8 z-10 shadow-[0_0_40px_rgba(244,63,94,0.25)]">
+            <Megaphone className="w-12 h-12 text-rose-400 mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">Send this campaign?</h3>
+            <p className="text-sm text-indigo-300/80 mb-2">
+              <strong className="text-white">{campaignDraft.subject || 'Untitled campaign'}</strong> will be sent to{' '}
+              <strong className="text-rose-300">{campaignRecipients.length}</strong>{' '}
+              {campaignRecipients.length === 1 ? 'recipient' : 'recipients'}.
+            </p>
+            <p className="text-xs text-indigo-400 mb-6">
+              Emails cannot be recalled once sent. Send yourself a test first if you are unsure.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSendCampaign}
+                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+              >
+                Send now
+              </button>
+              <button
+                onClick={() => setConfirmCampaign(false)}
+                className="flex-1 bg-[#090b14] border border-indigo-700 text-indigo-200 font-bold py-2.5 rounded-xl text-sm hover:border-indigo-500 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- ADD ADMIN MODAL --- */}
       {addAdminModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -1086,7 +2097,7 @@ export default function AdminDashboard() {
             <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
               <ShieldAlert className="w-6 h-6 text-fuchsia-500"/> Add Administrator
             </h3>
-            <p className="text-xs text-indigo-300/80 mb-6">Create a new admin account. A secure temporary password will be generated and emailed directly to them.</p>
+            <p className="text-xs text-indigo-300/80 mb-6">Create a new admin account. A secure temporary password and a one-time access code will be emailed to them. They must enter the code once before the dashboard unlocks.</p>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -1138,6 +2149,12 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">From</span>
                     <div className="text-white font-medium">{viewInquiryModal.name}</div>
                     <div className="text-indigo-300 text-xs">{viewInquiryModal.email}</div>
+                    <span className={'inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ' +
+                      (viewInquiryModal.is_customer
+                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                        : 'bg-amber-500/20 text-amber-300 border-amber-500/30')}>
+                      {viewInquiryModal.is_customer ? 'Existing customer' : 'Potential customer'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">Company / Type</span>
@@ -1153,6 +2170,45 @@ export default function AdminDashboard() {
               <div className="bg-[#090b14]/50 border border-indigo-800/50 rounded-xl p-4 min-h-[150px]">
                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-2">Message Details</span>
                  <div className="text-indigo-200 whitespace-pre-wrap leading-relaxed">{viewInquiryModal.details || <span className="italic opacity-50">No additional details provided.</span>}</div>
+              </div>
+
+              {/* CONVERSATION THREAD */}
+              <div className="bg-[#090b14]/50 border border-indigo-800/50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Conversation</span>
+                  {threadLoading && <span className="text-[10px] text-indigo-400 animate-pulse">Loading...</span>}
+                  {!threadLoading && thread.length > 0 && (
+                    <span className="text-[10px] text-indigo-400/70">{thread.length} {thread.length === 1 ? "reply" : "replies"}</span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {thread.map((msg) => {
+                    const outbound = msg.direction === 'outbound';
+                    return (
+                      <div key={msg.id} className="flex gap-3">
+                        <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 ${outbound ? "bg-blue-500/20 border-blue-500/40" : "bg-emerald-500/20 border-emerald-500/40"}`}>
+                          <Mail className={`w-3.5 h-3.5 ${outbound ? "text-blue-400" : "text-emerald-400"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${outbound ? "text-blue-400" : "text-emerald-400"}`}>
+                              {outbound ? 'Brains Team' : (viewInquiryModal.name || 'Customer')}
+                            </span>
+                            <span className="text-[10px] text-indigo-400/70">{new Date(msg.created_at).toLocaleString()}</span>
+                          </div>
+                          <div className={`text-xs whitespace-pre-wrap leading-relaxed rounded-lg p-3 border ${outbound ? "bg-blue-500/5 border-blue-500/20 text-indigo-100" : "bg-emerald-500/5 border-emerald-500/20 text-indigo-200"}`}>
+                            {msg.body}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {!threadLoading && thread.length === 0 && (
+                    <div className="text-[11px] text-indigo-400/60 italic">No replies yet. Your response will appear here.</div>
+                  )}
+                </div>
               </div>
             </div>
 

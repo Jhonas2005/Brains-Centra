@@ -12,6 +12,11 @@ export function getTransporter() {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Reuse connections during campaign blasts: opening a fresh TLS
+      // connection per recipient makes a 500-email send crawl.
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 100,
     });
   }
   return transporter;
@@ -20,7 +25,7 @@ export function getTransporter() {
 export const MAIL_FROM =
   process.env.SMTP_FROM || '"Brains Central Command" <hello@brains.asia>';
 
-export async function sendMail({ to, subject, html, text, replyTo }) {
+export async function sendMail({ to, subject, html, text, replyTo, attachments }) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error('SMTP credentials are not configured (SMTP_USER / SMTP_PASS).');
   }
@@ -32,5 +37,6 @@ export async function sendMail({ to, subject, html, text, replyTo }) {
     subject,
     html,
     text,
+    ...(attachments?.length ? { attachments } : {}),
   });
 }

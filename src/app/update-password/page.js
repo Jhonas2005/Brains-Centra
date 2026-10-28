@@ -129,14 +129,15 @@ export default function UpdatePasswordPage() {
 
       if (updateError) throw updateError;
 
-      await fetch('/api/admin/send-email', {
+      // Confirmation email is generated server-side from the verified session
+      const { data: { session } } = await supabase.auth.getSession();
+
+      await fetch('/api/auth/password-changed', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: user.email,
-          subject: "Security Alert: Your Password Was Successfully Changed",
-          message: `Hello,\n\nThis is an automated confirmation that the password for your Brains Central Command account (${user.email}) has been successfully updated.\n\nIf you did not authorize this change, please contact your system administrator immediately.\n\nRegards,\nThe Brains Security Team`
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
       });
 
       setMessage('Password updated securely! Redirecting to your dashboard...');
